@@ -65,6 +65,35 @@ jobs:
       image: ${{ steps.build.outputs.image }}
       tag: ${{ steps.build.outputs.tag }}
 
+  describe-affected:
+    needs: [ build ]
+    runs-on: ["ubuntu-latest"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Install Atmos
+        uses: cloudposse/github-action-setup-atmos@v3
+        with:
+          install-wrapper: false
+          atmos-version: ${{ vars.ATMOS_VERSION }}
+
+      - name: Describe Affected
+        shell: bash
+        env:
+          ATMOS_PRO_WORKSPACE_ID: ${{ vars.ATMOS_PRO_WORKSPACE_ID }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          atmos describe affected \
+            --process-functions=false \
+            --include-settings=false \
+            --skip=terraform.output \
+            --upload \
+            --sha ${{ github.event.pull_request.base.sha }}
+
   deploy:
     needs: [ test, build ]
     runs-on: ["ubuntu-latest"]

@@ -1,0 +1,64 @@
+name: Atmos Terraform Apply
+run-name: apply ${{ inputs.component }}/${{ inputs.stack }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      component:
+        description: "Component"
+        required: true
+        type: string
+      stack:
+        description: "Stack"
+        required: true
+        type: string
+      sha:
+        description: "Commit SHA"
+        type: string
+      github_environment:
+        description: "GitHub Environment"
+        required: true
+        type: string
+      atmos_pro_run_id:
+        description: "Atmos Pro Run ID"
+        type: string
+
+concurrency:
+  group: "${{ inputs.stack }}-${{ inputs.component }}"
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+  checks: write
+  statuses: write
+
+env:
+  ATMOS_PROFILE: github
+  APP_IMAGE: "${{ vars.ECR_REGISTRY }}/cloudposse-examples/app-on-ecs-v2:sha-${{ inputs.sha }}"
+
+jobs:
+  apply:
+    name: ${{ inputs.component }}-${{ inputs.stack }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.github_environment }}
+    steps:
+      - name: Install Atmos
+        uses: cloudposse/github-action-setup-atmos@v3
+        with:
+          install-wrapper: false
+          atmos-version: ${{ vars.ATMOS_VERSION }}
+
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.sha }}
+
+      - name: Deploy
+        shell: bash
+        env:
+          ATMOS_PRO_WORKSPACE_ID: ${{ vars.ATMOS_PRO_WORKSPACE_ID }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_SHA: ${{ inputs.sha }}
+        run: |
+          atmos terraform deploy ${{ inputs.component }} -s ${{ inputs.stack }} --upload-status
