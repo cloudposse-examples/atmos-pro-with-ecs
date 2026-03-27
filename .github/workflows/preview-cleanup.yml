@@ -1,0 +1,35 @@
+name: Preview Cleanup
+on:
+  pull_request:
+    branches: ["main"]
+    types: [closed, unlabeled]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+  checks: write
+
+jobs:      
+  cleanup:
+    runs-on: ["ubuntu-latest"]
+    if: ${{ github.event.pull_request.state == 'closed' || !contains(github.event.pull_request.labels.*.name, 'deploy') }}
+    steps:
+      - name: Install Atmos
+        uses: cloudposse/github-action-setup-atmos@v3
+        with:
+          install-wrapper: false
+          atmos-version: ${{ vars.ATMOS_VERSION }}
+
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Deploy ECS Service
+        shell: bash
+        env:
+          ATMOS_PROFILE: github
+        run: |
+          atmos terraform destroy app -s preview -auto-approve

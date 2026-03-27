@@ -1,0 +1,93 @@
+name: Feature Branch
+on:
+  pull_request:
+    branches: ["main"]
+    types: [opened, synchronize, reopened, labeled]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+  statuses: write
+
+env:
+  ATMOS_PROFILE: github 
+
+jobs:
+  test:
+    needs: [ build ]
+    runs-on: ["ubuntu-latest"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: app/go.mod
+          cache-dependency-path: app/go.mod
+          
+      - name: Run tests
+        working-directory: app
+        run: go test -v ./...
+
+  build:
+    runs-on: ["ubuntu-latest"]
+    steps:
+      - name: Install Atmos
+        uses: cloudposse/github-action-setup-atmos@v3
+        with:
+          install-wrapper: false
+          atmos-version: ${{ vars.ATMOS_VERSION }}
+
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: AWS Auth
+        shell: bash
+        run: |
+          atmos auth env --identity plat-dev/terraform --format dotenv | tr -d "'" >> $GITHUB_ENV
+          atmos auth login --identity plat-dev/terraform
+
+      - name: Build
+        id: build
+        uses: cloudposse/github-action-docker-build-push@v3
+        with:
+          organization: cloudposse-examples
+          repository: app-on-ecs-v2
+          registry: ${{ vars.ECR_REGISTRY }}
+          workdir: app
+
+    outputs:
+      image: ${{ steps.build.outputs.image }}
+      tag: ${{ steps.build.outputs.tag }}
+
+  deploy:
+    needs: [ test, build ]
+    runs-on: ["ubuntu-latest"]
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'deploy') }}
+    environment:
+      name: preview
+      url: ${{ steps.deploy.outputs.output_url }}
+    steps:
+      - name: Install Atmos
+        uses: cloudposse/github-action-setup-atmos@v3
+        with:
+          install-wrapper: false
+          atmos-version: ${{ vars.ATMOS_VERSION }}
+
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Deploy ECS Service
+        shell: bash
+        id: deploy
+        env:
+          APP_IMAGE: "${{ needs.build.outputs.image }}:${{ needs.build.outputs.tag }}"
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          atmos terraform deploy app -s preview

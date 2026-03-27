@@ -1,0 +1,22 @@
+import:
+  - _default.yaml
+  - defaults/app.yaml
+  - deps/*
+
+vars:
+  stage: staging
+  deps_stage: dev
+
+terraform:
+  auth:
+    identities:
+      plat-dev/terraform:
+        default: true
+  
+components:
+  terraform:
+    app:
+      metadata:
+        # Override Terraform workspace
+        terraform_workspace: "{{ .vars.github_repo_name }}-{{ .atmos_stack }}-{{ .atmos_component }}"
+

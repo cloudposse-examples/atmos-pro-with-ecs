@@ -1,0 +1,10 @@
+release/*
+.idea
+*.iml
+.terraform
+**/*.tfvars.json
+**/*.planfile
+**/backend.tf.json
+**/.terraform.lock.hcl
+
+.tools

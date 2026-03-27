@@ -1,0 +1,100 @@
+name: Release
+on:
+  release:
+    types: [published]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+  checks: write
+
+env:
+  ATMOS_PROFILE: github
+
+jobs:
+  promote:
+    runs-on: ["ubuntu-latest"]
+    steps:
+      - name: Install Atmos
+        uses: cloudposse/github-action-setup-atmos@v3
+        with:
+          install-wrapper: false
+          atmos-version: ${{ vars.ATMOS_VERSION }}
+
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: AWS Auth
+        shell: bash
+        run: |
+          atmos auth env --identity plat-dev/terraform --format dotenv | tr -d "'" >> $GITHUB_ENV
+          atmos auth login --identity plat-dev/terraform
+
+      - uses: cloudposse/github-action-docker-promote@v1
+        id: promote
+        with:
+          organization: cloudposse-examples
+          repository: app-on-ecs-v2
+          registry: ${{ vars.ECR_REGISTRY }}
+          from: sha-${{ github.sha }}
+          to: ${{ github.event.release.tag_name }}
+          use_metadata: false
+  
+    outputs:
+      image: ${{ steps.promote.outputs.image }}
+      tag: ${{ steps.promote.outputs.tag }}
+      
+  deploy-staging:
+    needs: [ promote ]
+    runs-on: ["ubuntu-latest"]
+    name: deploy / staging
+    environment:
+      name: staging
+      url: ${{ steps.deploy.outputs.url }}
+    steps:
+      - name: Install Atmos
+        uses: cloudposse/github-action-setup-atmos@v3
+        with:
+          install-wrapper: false
+          atmos-version: ${{ vars.ATMOS_VERSION }}
+
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Deploy ECS Service
+        shell: bash
+        id: deploy
+        env:
+          APP_IMAGE: "${{ needs.promote.outputs.image }}:${{ needs.promote.outputs.tag }}"
+        run: |
+          atmos terraform deploy app -s staging
+
+  deploy-production:
+    needs: [ deploy-staging, promote ]
+    runs-on: ["ubuntu-latest"]
+    name: deploy / production
+    environment:
+      name: prod
+      url: ${{ steps.deploy.outputs.url }}
+    steps:
+      - name: Install Atmos
+        uses: cloudposse/github-action-setup-atmos@v3
+        with:
+          install-wrapper: false
+          atmos-version: ${{ vars.ATMOS_VERSION }}
+
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Deploy ECS Service
+        shell: bash
+        id: deploy
+        env:
+          APP_IMAGE: "${{ needs.promote.outputs.image }}:${{ needs.promote.outputs.tag }}"
+        run: |
+          atmos terraform deploy app -s prod
+          
