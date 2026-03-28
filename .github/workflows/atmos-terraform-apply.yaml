@@ -35,7 +35,7 @@ permissions:
 
 env:
   ATMOS_PROFILE: github
-  APP_IMAGE: "${{ vars.ECR_REGISTRY }}/cloudposse-examples/app-on-ecs-v2:sha-${{ inputs.sha }}"
+  APP_IMAGE: "${{ vars.ECR_REGISTRY }}/cloudposse-examples/atmos-pro-with-ecs:sha-${{ inputs.sha }}"
 
 jobs:
   apply:
