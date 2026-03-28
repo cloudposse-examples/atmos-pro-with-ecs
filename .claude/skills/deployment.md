@@ -32,12 +32,20 @@ If deployments fail, check that:
 3. IAM role for state access has appropriate permissions
 4. The prerequisite components are deployed and their outputs match what `defaults/app.yaml` expects
 
-## CI/CD Pipeline
+## CI/CD Pipeline (Atmos Pro)
 
-- Push to `main` → build, deploy to dev, draft release
-- Publish release → promote image, deploy to staging/prod
-- PR with `deploy` label → preview environment
+- Push to `main` → build image → `describe-affected --upload` → Atmos Pro dispatches apply for dev → draft release
+- PR with `deploy` label → build image → `describe-affected --stack preview --upload` → Atmos Pro dispatches plan → approve in Atmos Pro UI → apply
+- Publish release → promote image, deploy to staging/prod (direct)
 - PR close → cleanup preview
+
+The plan/apply workflows (`atmos-terraform-plan.yaml`, `atmos-terraform-apply.yaml`) are dispatched by Atmos Pro. They reconstruct `APP_IMAGE` from the SHA input (the image was already built and tagged as `sha-<commit>` in the triggering workflow).
+
+## Atmos Pro Configuration
+
+- Stack settings are in `terraform/stacks/defaults/atmos-pro.yaml` (imported via `_default.yaml`)
+- Configures PR plan/apply workflows, drift detection, and release workflows
+- Requires `ATMOS_PRO_WORKSPACE_ID` variable and Atmos Pro GitHub App installed on the repository
 
 ## Naming Convention
 
