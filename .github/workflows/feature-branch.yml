@@ -66,8 +66,9 @@ jobs:
       tag: ${{ steps.build.outputs.tag }}
 
   describe-affected:
-    needs: [ build ]
+    needs: [ test, build ]
     runs-on: ["ubuntu-latest"]
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'deploy') }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -88,35 +89,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           atmos describe affected \
+            --stack preview \
             --process-functions=false \
             --include-settings=false \
             --skip=terraform.output \
             --upload \
             --sha ${{ github.event.pull_request.base.sha }}
-
-  deploy:
-    needs: [ test, build ]
-    runs-on: ["ubuntu-latest"]
-    if: ${{ contains(github.event.pull_request.labels.*.name, 'deploy') }}
-    environment:
-      name: preview
-      url: ${{ steps.deploy.outputs.output_url }}
-    steps:
-      - name: Install Atmos
-        uses: cloudposse/github-action-setup-atmos@v3
-        with:
-          install-wrapper: false
-          atmos-version: ${{ vars.ATMOS_VERSION }}
-
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Deploy ECS Service
-        shell: bash
-        id: deploy
-        env:
-          APP_IMAGE: "${{ needs.build.outputs.image }}:${{ needs.build.outputs.tag }}"
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          atmos terraform deploy app -s preview
