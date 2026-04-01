@@ -230,4 +230,4 @@ Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for full 
 All other trademarks referenced herein are the property of their respective owners.
 
 ---
-Copyright © 2017-2025 [Cloud Posse, LLC](https://cloudposse.com)
+Copyright © 2017-2026 [Cloud Posse, LLC](https://cloudposse.com)
