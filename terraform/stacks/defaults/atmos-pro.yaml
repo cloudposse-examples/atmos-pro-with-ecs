@@ -1,0 +1,41 @@
+plan-wf-config: &plan-wf-config
+  atmos-terraform-plan.yaml:
+    inputs:
+      component: "{{ .atmos_component }}"
+      stack: "{{ .atmos_stack }}"
+
+drift-detection-wf-config: &drift-detection-wf-config
+  atmos-terraform-plan.yaml:
+    inputs:
+      component: "{{ .atmos_component }}"
+      stack: "{{ .atmos_stack }}"
+      upload: "true"
+
+apply-wf-config: &apply-wf-config
+  atmos-terraform-apply.yaml:
+    inputs:
+      component: "{{ .atmos_component }}"
+      stack: "{{ .atmos_stack }}"
+      github_environment: "{{ .vars.stage }}"
+
+settings:
+  pro:
+    enabled: true
+    drift_detection:
+      enabled: true
+      detect:
+        workflows: *drift-detection-wf-config
+      remediate:
+        workflows: *apply-wf-config
+    pull_request:
+      opened:
+        workflows: *plan-wf-config
+      synchronize:
+        workflows: *plan-wf-config
+      reopened:
+        workflows: *plan-wf-config
+      merged:
+        workflows: *apply-wf-config
+    release:
+      released:
+        workflows: *apply-wf-config

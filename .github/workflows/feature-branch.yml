@@ -57,7 +57,7 @@ jobs:
         uses: cloudposse/github-action-docker-build-push@v3
         with:
           organization: cloudposse-examples
-          repository: app-on-ecs-v2
+          repository: atmos-pro-with-ecs
           registry: ${{ vars.ECR_REGISTRY }}
           workdir: app
 
@@ -65,29 +65,33 @@ jobs:
       image: ${{ steps.build.outputs.image }}
       tag: ${{ steps.build.outputs.tag }}
 
-  deploy:
+  describe-affected:
     needs: [ test, build ]
     runs-on: ["ubuntu-latest"]
     if: ${{ contains(github.event.pull_request.labels.*.name, 'deploy') }}
-    environment:
-      name: preview
-      url: ${{ steps.deploy.outputs.output_url }}
     steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
       - name: Install Atmos
         uses: cloudposse/github-action-setup-atmos@v3
         with:
           install-wrapper: false
           atmos-version: ${{ vars.ATMOS_VERSION }}
 
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Deploy ECS Service
+      - name: Describe Affected
         shell: bash
-        id: deploy
         env:
-          APP_IMAGE: "${{ needs.build.outputs.image }}:${{ needs.build.outputs.tag }}"
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+          ATMOS_PRO_WORKSPACE_ID: ${{ vars.ATMOS_PRO_WORKSPACE_ID }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          atmos terraform deploy app -s preview
+          atmos describe affected \
+            --stack preview \
+            --process-functions=false \
+            --include-settings=false \
+            --skip=terraform.output \
+            --upload \
+            --sha ${{ github.event.pull_request.base.sha }}

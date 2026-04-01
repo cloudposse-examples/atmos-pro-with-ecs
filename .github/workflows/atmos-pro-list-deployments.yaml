@@ -1,0 +1,40 @@
+name: Atmos Pro List Deployments
+run-name: list instances
+
+on:
+  schedule:
+    - cron: '0 8 * * *'
+  workflow_dispatch: {}
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  ATMOS_PROFILE: github
+
+jobs:
+  list:
+    name: list instances
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Atmos
+        uses: cloudposse/github-action-setup-atmos@v3
+        with:
+          install-wrapper: false
+          atmos-version: ${{ vars.ATMOS_VERSION }}
+
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: List Instances
+        shell: bash
+        env:
+          ATMOS_PRO_WORKSPACE_ID: ${{ vars.ATMOS_PRO_WORKSPACE_ID }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          atmos list instances --upload

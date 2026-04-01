@@ -1,0 +1,60 @@
+name: Atmos Terraform Plan
+run-name: plan ${{ inputs.component }}/${{ inputs.stack }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      component:
+        description: "Component"
+        required: true
+        type: string
+      stack:
+        description: "Stack"
+        required: true
+        type: string
+      sha:
+        description: "Commit SHA"
+        type: string
+      atmos_pro_run_id:
+        description: "Atmos Pro Run ID"
+        type: string
+
+concurrency:
+  group: "${{ inputs.stack }}-${{ inputs.component }}"
+  cancel-in-progress: true
+
+permissions:
+  id-token: write
+  contents: read
+  checks: write
+  statuses: write
+
+env:
+  ATMOS_PROFILE: github
+  # Reconstruct APP_IMAGE from SHA (image was built in the triggering workflow)
+  APP_IMAGE: "${{ vars.ECR_REGISTRY }}/cloudposse-examples/atmos-pro-with-ecs:sha-${{ inputs.sha }}"
+
+jobs:
+  plan:
+    name: ${{ inputs.component }}-${{ inputs.stack }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Atmos
+        uses: cloudposse/github-action-setup-atmos@v3
+        with:
+          install-wrapper: false
+          atmos-version: ${{ vars.ATMOS_VERSION }}
+
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.sha }}
+
+      - name: Plan
+        shell: bash
+        env:
+          ATMOS_PRO_WORKSPACE_ID: ${{ vars.ATMOS_PRO_WORKSPACE_ID }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_SHA: ${{ inputs.sha }}
+        run: |
+          atmos terraform plan ${{ inputs.component }} -s ${{ inputs.stack }} --upload-status

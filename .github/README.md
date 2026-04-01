@@ -1,15 +1,15 @@
-# app-on-ecs-v2 <a href="https://cloudposse.com/"><img align="right" src="https://cloudposse.com/logo-300x69.svg" width="150" /></a>
+# atmos-pro-with-ecs <a href="https://cloudposse.com/"><img align="right" src="https://cloudposse.com/logo-300x69.svg" width="150" /></a>
 
 
-[![Latest Release](https://img.shields.io/github/release/cloudposse-examples/app-on-ecs-v2.svg?style=for-the-badge)](https://github.com/cloudposse-examples/app-on-ecs-v2/releases/latest)
-[![Last Updated](https://img.shields.io/github/last-commit/cloudposse-examples/app-on-ecs-v2/main?style=for-the-badge)](https://github.com/cloudposse-examples/app-on-ecs-v2/commits/main/)
+[![Latest Release](https://img.shields.io/github/release/cloudposse-examples/atmos-pro-with-ecs.svg?style=for-the-badge)](https://github.com/cloudposse-examples/atmos-pro-with-ecs/releases/latest)
+[![Last Updated](https://img.shields.io/github/last-commit/cloudposse-examples/atmos-pro-with-ecs/main?style=for-the-badge)](https://github.com/cloudposse-examples/atmos-pro-with-ecs/commits/main/)
 [![Slack Community](https://slack.cloudposse.com/for-the-badge.svg)](https://slack.cloudposse.com)
 
 
 
-Example application deployed to AWS ECS using [Atmos](https://atmos.tools) and [OpenTofu](https://opentofu.org).
+Example application deployed to AWS ECS using [Atmos](https://atmos.tools), [Atmos Pro](https://atmos.tools/pro), and [OpenTofu](https://opentofu.org).
 
-This repository demonstrates an elegant, self-contained approach to deploying containerized applications on ECS Fargate with automated CI/CD pipelines.
+[Atmos](https://atmos.tools) provides a powerful framework for managing infrastructure configuration across multiple environments with DRY stack configurations, while [Atmos Pro](https://atmos.tools/pro) adds intelligent CI/CD orchestration — automatically detecting affected stacks, dispatching targeted plan/apply workflows, and providing drift detection — so teams get visibility and control over every deployment without maintaining complex pipeline logic.
 
 
 ## Introduction
@@ -83,9 +83,12 @@ See [`.github/workflows/`](.github/workflows/) for detailed workflow diagrams.
 
 | Workflow | Trigger | Action |
 |----------|---------|--------|
-| `main-branch.yaml` | Push to `main` | Build image → Deploy to dev → Create draft release |
+| `main-branch.yaml` | Push to `main` | Build image → Describe affected → Atmos Pro triggers apply → Draft release |
+| `feature-branch.yml` | PR with `deploy` label | Build image → Describe affected (preview) → Atmos Pro triggers plan |
+| `atmos-terraform-plan.yaml` | Workflow dispatch (Atmos Pro) | Run `atmos terraform plan` and upload status |
+| `atmos-terraform-apply.yaml` | Workflow dispatch (Atmos Pro) | Run `atmos terraform deploy` and upload status |
+| `atmos-pro-list-deployments.yaml` | Daily schedule / manual | Sync instance inventory to Atmos Pro |
 | `release.yaml` | Published release | Promote image → Deploy to staging and prod |
-| `feature-branch.yml` | PR with `deploy` label | Build image → Deploy to preview environment |
 | `preview-cleanup.yml` | PR closed | Destroy preview environment |
 
 ### Deployment
@@ -130,11 +133,11 @@ atmos terraform deploy app -s staging
 atmos terraform deploy app -s prod
 ```
 
-#### CI/CD Deployment
+#### CI/CD Deployment (via Atmos Pro)
 
-1. Push to `main` branch → automatically deploys to dev
-2. Create a GitHub release → automatically deploys to staging and prod
-3. Open a PR with `deploy` label → deploys to a preview environment
+1. Push to `main` branch → builds image → `describe-affected` uploads to Atmos Pro → Atmos Pro dispatches apply workflow for dev
+2. Open a PR with `deploy` label → builds image → `describe-affected --stack preview` uploads to Atmos Pro → Atmos Pro dispatches plan workflow
+3. Create a GitHub release → promotes image → deploys to staging and prod (direct)
 
 ### Configuration
 
@@ -227,4 +230,4 @@ Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for full 
 All other trademarks referenced herein are the property of their respective owners.
 
 ---
-Copyright © 2017-2025 [Cloud Posse, LLC](https://cloudposse.com)
+Copyright © 2017-2026 [Cloud Posse, LLC](https://cloudposse.com)
