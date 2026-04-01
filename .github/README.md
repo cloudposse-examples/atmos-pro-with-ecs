@@ -9,7 +9,7 @@
 
 Example application deployed to AWS ECS using [Atmos](https://atmos.tools), [Atmos Pro](https://atmos.tools/pro), and [OpenTofu](https://opentofu.org).
 
-This repository demonstrates deploying containerized applications on ECS Fargate with [Atmos Pro](https://atmos.tools/pro) orchestrating plan/apply workflows via `describe-affected` and GitHub Actions workflow dispatch.
+[Atmos](https://atmos.tools) provides a powerful framework for managing infrastructure configuration across multiple environments with DRY stack configurations, while [Atmos Pro](https://atmos.tools/pro) adds intelligent CI/CD orchestration — automatically detecting affected stacks, dispatching targeted plan/apply workflows, and providing drift detection — so teams get visibility and control over every deployment without maintaining complex pipeline logic.
 
 
 ## Introduction
