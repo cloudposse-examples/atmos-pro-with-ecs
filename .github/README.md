@@ -7,16 +7,16 @@
 
 
 
-Example application deployed to AWS ECS using [Atmos](https://atmos.tools), [Atmos Pro](https://atmos.tools/pro), and [OpenTofu](https://opentofu.org).
+Example **workload repository** demonstrating monorepo deployments of workloads to AWS ECS using GitHub Actions and [Atmos Pro](https://atmos.tools/pro), built on [Atmos](https://atmos.tools)' native CI integration with [OpenTofu](https://opentofu.org).
 
-[Atmos](https://atmos.tools) provides a powerful framework for managing infrastructure configuration across multiple environments with DRY stack configurations, while [Atmos Pro](https://atmos.tools/pro) adds intelligent CI/CD orchestration — automatically detecting affected stacks, dispatching targeted plan/apply workflows, and providing drift detection — so teams get visibility and control over every deployment without maintaining complex pipeline logic.
+[Atmos](https://atmos.tools) provides a framework for managing infrastructure configuration across multiple environments with DRY stack configurations. [Atmos Pro](https://atmos.tools/pro) layers monorepo-aware CI/CD orchestration on top — detecting affected workloads on every change, dispatching targeted plan/apply workflows per stack, and providing drift detection — so teams get visibility and control over every workload deployment without maintaining bespoke pipeline logic.
 
 
 ## Introduction
 
-### Application
+### Workload
 
-A simple Go web server designed to demonstrate container deployment strategies. Each request increments a counter, and the background color is configurable - making it easy to visualize blue/green deployments and load balancing. The `/dashboard` endpoint displays a grid of auto-refreshing iframes to show traffic distribution across instances. See [`app/`](app/) for details.
+The example workload in this repository is a simple Go web server designed to demonstrate container deployment strategies. Each request increments a counter, and the background color is configurable - making it easy to visualize blue/green deployments and load balancing. The `/dashboard` endpoint displays a grid of auto-refreshing iframes to show traffic distribution across instances. See [`app/`](app/) for details.
 
 ### Infrastructure
 
@@ -55,6 +55,7 @@ graph TB
 
 This project uses:
 
+- **Workload repository pattern** - One repo per deployable workload, deployed across environments via Atmos stacks
 - **[Atmos](https://atmos.tools)** - Configuration orchestration and stack management
 - **[OpenTofu](https://opentofu.org)** - Infrastructure as Code (Terraform-compatible)
 - **AWS ECS Fargate** - Serverless container orchestration
@@ -79,16 +80,17 @@ atmos down
 
 ### CI/CD Workflows
 
-See [`.github/workflows/`](.github/workflows/) for detailed workflow diagrams.
+These workflows implement the workload deployment pipeline: build the image, run `atmos describe affected` to detect changed workloads, then let Atmos Pro dispatch plan/apply per affected stack. See [`.github/workflows/`](.github/workflows/) for detailed workflow diagrams.
 
 | Workflow | Trigger | Action |
 |----------|---------|--------|
-| `main-branch.yaml` | Push to `main` | Build image → Describe affected → Atmos Pro triggers apply → Draft release |
-| `feature-branch.yml` | PR with `deploy` label | Build image → Describe affected (preview) → Atmos Pro triggers plan |
+| `feature-branch.yml` | Pull request, merge queue | Build image → Run tests → Describe affected → Atmos Pro plans preview (`deploy` label) or applies dev (merge queue) |
+| `validate.yml` | Pull request, merge queue | Lint CODEOWNERS |
+| `main-branch.yaml` | Push to `main` | Update draft release notes |
+| `release.yaml` | Published release, manual dispatch | Promote image → Deploy to staging and/or prod |
 | `atmos-terraform-plan.yaml` | Workflow dispatch (Atmos Pro) | Run `atmos terraform plan` and upload status |
 | `atmos-terraform-apply.yaml` | Workflow dispatch (Atmos Pro) | Run `atmos terraform deploy` and upload status |
 | `atmos-pro-list-deployments.yaml` | Daily schedule / manual | Sync instance inventory to Atmos Pro |
-| `release.yaml` | Published release | Promote image → Deploy to staging and prod |
 | `preview-cleanup.yml` | PR closed | Destroy preview environment |
 
 ### Deployment
@@ -135,9 +137,10 @@ atmos terraform deploy app -s prod
 
 #### CI/CD Deployment (via Atmos Pro)
 
-1. Push to `main` branch → builds image → `describe-affected` uploads to Atmos Pro → Atmos Pro dispatches apply workflow for dev
-2. Open a PR with `deploy` label → builds image → `describe-affected --stack preview` uploads to Atmos Pro → Atmos Pro dispatches plan workflow
+1. Open a PR with `deploy` label → builds image → `describe-affected --stack preview` uploads to Atmos Pro → Atmos Pro dispatches plan workflow for preview
+2. Click "Merge when ready" → merge queue runs build/test/`describe-affected` on the queue commit → Atmos Pro dispatches apply for dev → check-suite status gates the queue → on success, fast-forward to `main`
 3. Create a GitHub release → promotes image → deploys to staging and prod (direct)
+4. Run `release.yaml` via workflow dispatch with a `tag` and `environment` to roll back or hotfix without cutting a new release
 
 ### Configuration
 
@@ -160,7 +163,7 @@ Container configuration is defined in `terraform/stacks/defaults/app.yaml` and c
 
 ```
 .
-├── app/                       # Go application
+├── app/                       # Workload source (Go web server)
 │   ├── main.go                # Web server
 │   ├── Dockerfile             # Multi-stage container build
 │   ├── public/                # Static HTML assets
@@ -170,7 +173,7 @@ Container configuration is defined in `terraform/stacks/defaults/app.yaml` and c
 ├── .atmos.d/                  # Atmos custom commands
 ├── terraform/
 │   ├── components/            # Terraform/OpenTofu modules
-│   │   └── ecs-task/          # ECS task definition component
+│   │   └── ecs-task/          # Workload's Terraform component (ECS task definition)
 │   └── stacks/                # Environment configurations
 │       ├── defaults/          # Shared component config
 │       ├── deps/              # Dependency references

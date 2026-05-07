@@ -3,6 +3,10 @@ components:
     app:
       metadata:
         component: ecs-task
+      dependencies:
+        components:
+          - kind: folder
+            path: "app"
       vars:
         name: app
         ecs: !terraform.state ecs/cluster .
@@ -17,7 +21,7 @@ components:
               - containerPort: 8080
             environment:
               - name: COLOR
-                value: blue
+                value: green
             healthCheck:
               command: ["CMD-SHELL", "curl -f http://localhost:8080/healthz || exit 1"]
               interval: 5

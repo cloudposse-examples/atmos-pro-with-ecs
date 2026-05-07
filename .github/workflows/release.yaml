@@ -2,6 +2,21 @@ name: Release
 on:
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Image tag to deploy (must already exist in ECR, e.g. 1.2.3)'
+        required: true
+        type: string
+      environment:
+        description: 'Target environment'
+        required: true
+        type: choice
+        options:
+          - staging
+          - prod
+          - both
+        default: both
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -17,6 +32,7 @@ env:
 
 jobs:
   promote:
+    if: github.event_name == 'release'
     runs-on: ["ubuntu-latest"]
     steps:
       - name: Install Atmos
@@ -43,58 +59,65 @@ jobs:
           from: sha-${{ github.sha }}
           to: ${{ github.event.release.tag_name }}
           use_metadata: false
-  
+
     outputs:
       image: ${{ steps.promote.outputs.image }}
       tag: ${{ steps.promote.outputs.tag }}
-      
+
   deploy-staging:
     needs: [ promote ]
+    if: >-
+      always() &&
+      (needs.promote.result == 'success' || needs.promote.result == 'skipped') &&
+      (github.event_name == 'release' ||
+       inputs.environment == 'staging' ||
+       inputs.environment == 'both')
     runs-on: ["ubuntu-latest"]
+    container:
+      image: ghcr.io/cloudposse/atmos:${{ vars.ATMOS_VERSION }}
+    defaults:
+      run:
+        shell: bash
     name: deploy / staging
     environment:
       name: staging
       url: ${{ steps.deploy.outputs.url }}
     steps:
-      - name: Install Atmos
-        uses: cloudposse/github-action-setup-atmos@v3
-        with:
-          install-wrapper: false
-          atmos-version: ${{ vars.ATMOS_VERSION }}
-
       - name: Checkout
         uses: actions/checkout@v6
 
       - name: Deploy ECS Service
-        shell: bash
         id: deploy
         env:
-          APP_IMAGE: "${{ needs.promote.outputs.image }}:${{ needs.promote.outputs.tag }}"
+          APP_IMAGE: "${{ vars.ECR_REGISTRY }}/cloudposse-examples/atmos-pro-with-ecs:${{ github.event.release.tag_name || inputs.tag }}"
         run: |
           atmos terraform deploy app -s staging
 
   deploy-production:
-    needs: [ deploy-staging, promote ]
+    needs: [ deploy-staging ]
+    if: >-
+      always() &&
+      (needs.deploy-staging.result == 'success' || needs.deploy-staging.result == 'skipped') &&
+      (github.event_name == 'release' ||
+       inputs.environment == 'prod' ||
+       inputs.environment == 'both')
     runs-on: ["ubuntu-latest"]
+    container:
+      image: ghcr.io/cloudposse/atmos:${{ vars.ATMOS_VERSION }}
+    defaults:
+      run:
+        shell: bash
     name: deploy / production
     environment:
       name: prod
       url: ${{ steps.deploy.outputs.url }}
     steps:
-      - name: Install Atmos
-        uses: cloudposse/github-action-setup-atmos@v3
-        with:
-          install-wrapper: false
-          atmos-version: ${{ vars.ATMOS_VERSION }}
-
       - name: Checkout
         uses: actions/checkout@v6
 
       - name: Deploy ECS Service
-        shell: bash
         id: deploy
         env:
-          APP_IMAGE: "${{ needs.promote.outputs.image }}:${{ needs.promote.outputs.tag }}"
+          APP_IMAGE: "${{ vars.ECR_REGISTRY }}/cloudposse-examples/atmos-pro-with-ecs:${{ github.event.release.tag_name || inputs.tag }}"
         run: |
           atmos terraform deploy app -s prod
-          
