@@ -3,6 +3,10 @@ components:
     app:
       metadata:
         component: ecs-task
+      dependencies:
+        components:
+          - kind: folder
+            path: "app"
       vars:
         name: app
         ecs: !terraform.state ecs/cluster .
