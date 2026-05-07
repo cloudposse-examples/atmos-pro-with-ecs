@@ -4,13 +4,6 @@ plan-wf-config: &plan-wf-config
       component: "{{ .atmos_component }}"
       stack: "{{ .atmos_stack }}"
 
-drift-detection-wf-config: &drift-detection-wf-config
-  atmos-terraform-plan.yaml:
-    inputs:
-      component: "{{ .atmos_component }}"
-      stack: "{{ .atmos_stack }}"
-      upload: "true"
-
 apply-wf-config: &apply-wf-config
   atmos-terraform-apply.yaml:
     inputs:
@@ -24,7 +17,7 @@ settings:
     drift_detection:
       enabled: true
       detect:
-        workflows: *drift-detection-wf-config
+        workflows: *plan-wf-config
       remediate:
         workflows: *apply-wf-config
     pull_request:
