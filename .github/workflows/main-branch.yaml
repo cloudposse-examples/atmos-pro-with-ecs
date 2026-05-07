@@ -8,93 +8,11 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  id-token: write
   contents: write
-  statuses: write
-
-env:
-  ATMOS_PROFILE: github
 
 jobs:
-  test:
-    needs: [ build ]
-    runs-on: ["ubuntu-latest"]
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Set up Go
-        uses: actions/setup-go@v6
-        with:
-          go-version-file: app/go.mod
-          cache-dependency-path: app/go.mod
-
-      - name: Run tests
-        working-directory: app
-        run: go test -v ./...
-
-  build:
-    runs-on: ["ubuntu-latest"]
-    steps:
-      - name: Install Atmos
-        uses: cloudposse/github-action-setup-atmos@v3
-        with:
-          install-wrapper: false
-          atmos-version: ${{ vars.ATMOS_VERSION }}
-
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: AWS Auth
-        shell: bash
-        run: |
-          atmos auth env --identity plat-dev/terraform --format dotenv | tr -d "'" >> $GITHUB_ENV
-          atmos auth login --identity plat-dev/terraform
-
-      - name: Build
-        id: build
-        uses: cloudposse/github-action-docker-build-push@v3
-        with:
-          organization: cloudposse-examples
-          repository: atmos-pro-with-ecs
-          registry: ${{ vars.ECR_REGISTRY }}
-          workdir: app
-
-    outputs:
-      image: ${{ steps.build.outputs.image }}
-      tag: ${{ steps.build.outputs.tag }}
-      
-  describe-affected:
-    needs: [ build ]
-    runs-on: ["ubuntu-latest"]
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-
-      - name: Install Atmos
-        uses: cloudposse/github-action-setup-atmos@v3
-        with:
-          install-wrapper: false
-          atmos-version: ${{ vars.ATMOS_VERSION }}
-
-      - name: Describe Affected
-        shell: bash
-        env:
-          ATMOS_PRO_WORKSPACE_ID: ${{ vars.ATMOS_PRO_WORKSPACE_ID }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          atmos describe affected \
-            --process-functions=false \
-            --include-settings=false \
-            --skip=terraform.output \
-            --upload \
-            --sha $(git rev-parse HEAD~1)
-
   release:
     runs-on: ["ubuntu-latest"]
-    needs: [ test, build, describe-affected ]
     steps:
       - name: Create/Update Draft release
         uses: release-drafter/release-drafter@v7

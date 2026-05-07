@@ -3,6 +3,8 @@ on:
   pull_request:
     branches: ["main"]
     types: [opened, synchronize, reopened, labeled]
+  merge_group:
+    branches: ["main"]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -14,7 +16,7 @@ permissions:
   statuses: write
 
 env:
-  ATMOS_PROFILE: github 
+  ATMOS_PROFILE: github
 
 jobs:
   test:
@@ -29,7 +31,7 @@ jobs:
         with:
           go-version-file: app/go.mod
           cache-dependency-path: app/go.mod
-          
+
       - name: Run tests
         working-directory: app
         run: go test -v ./...
@@ -65,10 +67,18 @@ jobs:
       image: ${{ steps.build.outputs.image }}
       tag: ${{ steps.build.outputs.tag }}
 
-  describe-affected:
+  describe-affected-preview:
     needs: [ test, build ]
     runs-on: ["ubuntu-latest"]
-    if: ${{ contains(github.event.pull_request.labels.*.name, 'deploy') }}
+    container:
+      image: ghcr.io/cloudposse/atmos:${{ vars.ATMOS_VERSION }}
+    defaults:
+      run:
+        shell: bash
+    name: describe affected / preview
+    if: >-
+      github.event_name == 'pull_request' &&
+      contains(github.event.pull_request.labels.*.name, 'deploy')
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -76,14 +86,10 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
 
-      - name: Install Atmos
-        uses: cloudposse/github-action-setup-atmos@v3
-        with:
-          install-wrapper: false
-          atmos-version: ${{ vars.ATMOS_VERSION }}
+      - name: Configure git safe directory
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Describe Affected
-        shell: bash
         env:
           ATMOS_PRO_WORKSPACE_ID: ${{ vars.ATMOS_PRO_WORKSPACE_ID }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -95,3 +101,34 @@ jobs:
             --skip=terraform.output \
             --upload \
             --sha ${{ github.event.pull_request.base.sha }}
+
+  describe-affected-dev:
+    needs: [ test, build ]
+    runs-on: ["ubuntu-latest"]
+    container:
+      image: ghcr.io/cloudposse/atmos:${{ vars.ATMOS_VERSION }}
+    defaults:
+      run:
+        shell: bash
+    name: describe affected / dev
+    if: github.event_name == 'merge_group'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Configure git safe directory
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Describe Affected
+        env:
+          ATMOS_PRO_WORKSPACE_ID: ${{ vars.ATMOS_PRO_WORKSPACE_ID }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          atmos describe affected \
+            --process-functions=false \
+            --include-settings=false \
+            --skip=terraform.output \
+            --upload \
+            --sha ${{ github.event.merge_group.base_sha }}
