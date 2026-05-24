@@ -8,7 +8,7 @@ components:
           - kind: folder
             path: "app"
       vars:
-        name: app
+        name: voyager
         ecs: !terraform.state ecs/cluster .
         vpc: !terraform.state vpc .
         lb: !terraform.state ecs/cluster .alb.public
@@ -32,9 +32,9 @@ components:
                 logDriver: "awslogs"
                 options:
                     awslogs-create-group: true
-                    awslogs-group: "app"
+                    awslogs-group: "voyager"
                     awslogs-region: "us-east-2"
-                    awslogs-stream-prefix: "app"
+                    awslogs-stream-prefix: "voyager"
         url_path: /dashboard
         autoscaling:
           min_capacity: 2

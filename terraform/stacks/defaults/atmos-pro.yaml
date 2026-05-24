@@ -27,7 +27,9 @@ settings:
         workflows: *plan-wf-config
       reopened:
         workflows: *plan-wf-config
-      merged:
+      # No `merged:` — apply runs on the queue commit via `merge_group.checks_requested`
+    merge_group:
+      checks_requested:
         workflows: *apply-wf-config
     release:
       released:
