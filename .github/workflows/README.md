@@ -38,9 +38,11 @@ To preserve queue throughput while keeping a human gate on production, staging/p
 
 Triggering on `release: published` is great for "deploy the new version," but useless for "redeploy v1.2.3 to prod because v1.2.4 broke." `release.yaml` accepts a `tag` input (any image tag in ECR) and an `environment` input (`staging`, `prod`, or `both`), so you can roll back, hotfix, or selectively redeploy without cutting a new release. The `promote` job is skipped on dispatch (the image already exists at that tag).
 
-### Trade-off: queue bypass
+### Merge queue is required for `main`
 
-If a maintainer force-merges a PR (bypassing the queue), `main-branch.yaml` will only draft a release — it will not auto-deploy to dev. The Atmos Pro `merged` event mapping in `terraform/stacks/defaults/atmos-pro.yaml` is still wired to dispatch an apply on PR merge as a backstop for this case. Use `release.yaml` workflow_dispatch to redeploy any environment if needed.
+Apply only runs from `merge_group.checks_requested` in `terraform/stacks/defaults/atmos-pro.yaml` — there is no `pull_request.merged` backstop. Per the [Atmos Pro docs](https://atmos-pro.com/docs/configure/stacks#github-merge-queue-mergegroup), configuring both would apply twice for the same change.
+
+Branch protection on `main` is configured to require the queue, so a PR cannot land without going through it and applying successfully. If the queue is ever bypassed (e.g. admin push) and dev drifts from `main`, recover by manually dispatching `atmos-terraform-apply.yaml` (`component=app`, `stack=dev`, `sha=<main-sha>`, `github_environment=dev`) or running `atmos terraform deploy app -s dev` locally from the corresponding ref.
 
 ## Pull Request → Merge Queue → Dev (via Atmos Pro)
 
