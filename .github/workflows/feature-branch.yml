@@ -100,8 +100,7 @@ jobs:
             --process-functions=false \
             --include-settings=false \
             --skip=terraform.output \
-            --upload \
-            --sha ${{ github.event.pull_request.base.sha }}
+            --upload
 
   describe-affected-dev:
     needs: [ test, build ]
@@ -112,7 +111,6 @@ jobs:
       run:
         shell: bash
     name: describe affected / dev
-    if: github.event_name == 'merge_group'
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -128,8 +126,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           atmos describe affected \
+            --stack dev \
             --process-functions=false \
             --include-settings=false \
             --skip=terraform.output \
-            --upload \
-            --sha ${{ github.event.merge_group.base_sha }}
+            --upload
