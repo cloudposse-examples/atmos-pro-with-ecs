@@ -4,7 +4,7 @@ GitHub Actions CI/CD pipelines, orchestrated by [Atmos Pro](https://atmos.tools/
 
 | Workflow | Trigger | Action |
 |----------|---------|--------|
-| `atmos-pro.yaml` | Pull request, merge queue | Build image, run tests, `atmos describe affected --upload`. Atmos Pro dispatches plan/apply based on `settings.pro` in the affected stacks. |
+| `atmos-pro.yaml` | Pull request, merge queue, merged PR | Build image, run tests, `atmos describe affected --upload`. Atmos Pro dispatches plan/apply/verification based on `settings.pro` in the affected stacks. |
 | `validate.yml` | Pull request, merge queue | Lint CODEOWNERS |
 | `main-branch.yaml` | Push to `main` | Update draft release notes |
 | `release.yaml` | Published release, manual dispatch | Promote image, deploy to staging and/or prod |
@@ -40,7 +40,13 @@ Triggering on `release: published` is great for "deploy the new version," but us
 
 ### Merge queue is required for `main`
 
-Apply only runs from `merge_group.checks_requested` in `terraform/stacks/defaults/atmos-pro.yaml` — there is no `pull_request.merged` backstop. Per the [Atmos Pro docs](https://atmos-pro.com/docs/configure/stacks#github-merge-queue-mergegroup), configuring both would apply twice for the same change.
+The lifecycle model for Atmos Pro is `pr -> queue? -> merge -> release?`. This repository uses all three PR-related lifecycles:
+
+- `pull_request.opened/synchronize/reopened` plans PR changes.
+- `merge_group.checks_requested` applies dev on the synthetic queue commit and gates the merge.
+- `pull_request.merged` runs post-merge plan/verification because `atmos-pro.yaml` uploads affected stacks again after the PR actually merges.
+
+The affected-stacks workflow and `settings.pro` must agree. If `atmos-pro.yaml` uploads for a lifecycle, `terraform/stacks/defaults/atmos-pro.yaml` must configure matching workflows for that lifecycle. If a lifecycle should not dispatch anything, skip `atmos describe affected --upload` for that lifecycle instead of leaving it unconfigured.
 
 Branch protection on `main` is configured to require the queue, so a PR cannot land without going through it and applying successfully. If the queue is ever bypassed (e.g. admin push) and dev drifts from `main`, recover by manually dispatching `atmos-terraform-apply.yaml` (`component=app`, `stack=dev`, `sha=<main-sha>`, `github_environment=dev`) or running `atmos terraform deploy app -s dev` locally from the corresponding ref.
 
@@ -71,6 +77,9 @@ sequenceDiagram
     ECS-->>AP: Apply status
     AP-->>GH: Check-suite status on queue commit
     GH->>GH: Fast-forward main to queue commit
+    GH->>GA: Trigger atmos-pro workflow (pull_request.closed merged)
+    GA->>AP: atmos describe affected --upload (merge commit SHA)
+    AP->>GA: Dispatch atmos-terraform-plan.yaml (post-merge verification)
     GH->>GA: Trigger main-branch workflow (push)
     GA->>GH: Update draft release notes
 ```
@@ -163,7 +172,8 @@ graph LR
     G --> Gapply[Atmos Pro:<br/>Apply Dev]
     Gapply -->|Success| H[Fast-forward main]
     Gapply -->|Failure| A
-    H --> I[Update Draft Release]
+    H --> Hverify[Atmos Pro:<br/>Post-merge Verification]
+    Hverify --> I[Update Draft Release]
     I --> J{Publish Release?}
     J -->|Yes| K[Promote Image]
     K --> L[Deploy Staging]
