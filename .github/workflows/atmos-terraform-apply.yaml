@@ -19,13 +19,6 @@ on:
         description: "GitHub Environment"
         required: true
         type: string
-      atmos_pro_run_id:
-        description: "Atmos Pro Run ID"
-        type: string
-
-concurrency:
-  group: "${{ inputs.stack }}-${{ inputs.component }}"
-  cancel-in-progress: false
 
 permissions:
   id-token: write
@@ -63,4 +56,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_SHA: ${{ inputs.sha }}
         run: |
-          atmos terraform deploy ${{ inputs.component }} -s ${{ inputs.stack }} --upload-status
+          atmos terraform deploy ${{ inputs.component }} -s ${{ inputs.stack }} --upload

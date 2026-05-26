@@ -15,13 +15,6 @@ on:
       sha:
         description: "Commit SHA"
         type: string
-      atmos_pro_run_id:
-        description: "Atmos Pro Run ID"
-        type: string
-
-concurrency:
-  group: "${{ inputs.stack }}-${{ inputs.component }}"
-  cancel-in-progress: true
 
 permissions:
   id-token: write
@@ -56,4 +49,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_SHA: ${{ inputs.sha }}
         run: |
-          atmos terraform plan ${{ inputs.component }} -s ${{ inputs.stack }} --upload-status
+          atmos terraform plan ${{ inputs.component }} -s ${{ inputs.stack }} --upload

@@ -4,13 +4,13 @@ GitHub Actions CI/CD pipelines, orchestrated by [Atmos Pro](https://atmos.tools/
 
 | Workflow | Trigger | Action |
 |----------|---------|--------|
-| `feature-branch.yml` | Pull request, merge queue | Build image, run tests; on PR with `deploy` label, `describe affected --stack preview` (Atmos Pro plans preview); on merge queue, `describe affected` (Atmos Pro applies dev) |
+| `atmos-pro.yaml` | Pull request, merge queue | Build image, run tests, `atmos describe affected --upload`. Atmos Pro dispatches plan/apply based on `settings.pro` in the affected stacks. |
 | `validate.yml` | Pull request, merge queue | Lint CODEOWNERS |
 | `main-branch.yaml` | Push to `main` | Update draft release notes |
 | `release.yaml` | Published release, manual dispatch | Promote image, deploy to staging and/or prod |
-| `atmos-terraform-plan.yaml` | Workflow dispatch (Atmos Pro) | Run `atmos terraform plan` and upload status |
-| `atmos-terraform-apply.yaml` | Workflow dispatch (Atmos Pro) | Run `atmos terraform deploy` and upload status |
-| `atmos-pro-list-deployments.yaml` | Daily schedule / manual | Sync instance inventory to Atmos Pro |
+| `atmos-terraform-plan.yaml` | Workflow dispatch (Atmos Pro) | `atmos terraform plan --upload` |
+| `atmos-terraform-apply.yaml` | Workflow dispatch (Atmos Pro) | `atmos terraform deploy --upload` |
+| `atmos-pro-upload-instances.yaml` | Push to `main`, daily schedule, manual | `atmos list instances --upload` — keeps inventory current |
 | `preview-cleanup.yml` | PR closed | Destroy preview environment |
 | `labeler.yaml` | Pull request | Auto-label based on changed files |
 
@@ -22,7 +22,7 @@ Workflow files are named for *where they fire from* (a feature branch, the main 
 
 ### Dev deploy runs in the merge queue, dispatched by Atmos Pro — not on push to `main`
 
-The merge queue runs `build` + `test` + `describe affected` on a temporary commit (the PR rebased on top of `main`). `atmos describe affected --upload` reports the queue commit's affected stacks to Atmos Pro, which dispatches `atmos-terraform-apply.yaml` via `workflow_dispatch`. The dispatched apply runs `atmos terraform deploy --upload-status`, which posts a status check on the queue commit. The merge queue waits on that status check; if the apply fails, the PR is rejected from the queue and never lands on `main`.
+The merge queue runs `build` + `test` + `describe affected` on a temporary commit (the PR rebased on top of `main`). `atmos describe affected --upload` reports the queue commit's affected stacks to Atmos Pro, which dispatches `atmos-terraform-apply.yaml` via `workflow_dispatch`. The dispatched apply runs `atmos terraform deploy --upload`, which posts a status check on the queue commit. The merge queue waits on that status check; if the apply fails, the PR is rejected from the queue and never lands on `main`.
 
 This catches a broken Terraform apply *before* it breaks dev — a stronger guarantee than deploying after merge and noticing the failure. Nothing in this repo runs `atmos terraform deploy` directly; everything goes through Atmos Pro's dispatch flow.
 
@@ -56,18 +56,18 @@ sequenceDiagram
     participant ECS as AWS ECS
 
     Dev->>GH: Open PR
-    GH->>GA: Trigger feature-branch workflow (pull_request)
+    GH->>GA: Trigger atmos-pro workflow (pull_request)
     GA->>ECR: Build & push Docker image (sha-xxx)
     GA->>GA: Run Go tests
     GA-->>GH: Required checks pass
     Dev->>GH: Click "Merge when ready"
     GH->>GH: Place PR on queue ref (gh-readonly-queue/main/...)
-    GH->>GA: Trigger feature-branch workflow (merge_group)
+    GH->>GA: Trigger atmos-pro workflow (merge_group)
     GA->>ECR: Build & push Docker image
     GA->>GA: Run Go tests
     GA->>AP: atmos describe affected --upload (queue commit SHA)
     AP->>GA: Dispatch atmos-terraform-apply.yaml (dev)
-    GA->>ECS: atmos terraform deploy app -s dev --upload-status
+    GA->>ECS: atmos terraform deploy app -s dev --upload
     ECS-->>AP: Apply status
     AP-->>GH: Check-suite status on queue commit
     GH->>GH: Fast-forward main to queue commit
@@ -87,16 +87,16 @@ sequenceDiagram
     participant ECS as AWS ECS
 
     Dev->>GH: Open PR with `deploy` label
-    GH->>GA: Trigger feature-branch workflow (pull_request)
+    GH->>GA: Trigger atmos-pro workflow (pull_request)
     GA->>ECR: Build & push Docker image
     GA->>GA: Run Go tests
-    GA->>AP: atmos describe affected --stack preview --upload
+    GA->>AP: atmos describe affected --upload
     AP->>GA: Dispatch atmos-terraform-plan.yaml
-    GA->>ECS: atmos terraform plan app -s preview --upload-status
+    GA->>ECS: atmos terraform plan app -s preview --upload
     ECS-->>AP: Plan status
     Note over Dev,AP: Developer reviews plan in Atmos Pro UI
     AP->>GA: Dispatch atmos-terraform-apply.yaml (on approval)
-    GA->>ECS: atmos terraform deploy app -s preview --upload-status
+    GA->>ECS: atmos terraform deploy app -s preview --upload
     ECS-->>AP: Apply status
     Note over Dev,GH: PR closed
     GH->>GA: Trigger preview-cleanup workflow
