@@ -1,0 +1,139 @@
+name: Preview
+
+on:
+  pull_request:
+    branches: ["main"]
+    types: [opened, reopened, synchronize, labeled, unlabeled, closed]
+
+concurrency:
+  group: preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+  checks: write
+  statuses: write
+
+env:
+  ATMOS_PROFILE: github
+  PR_NUMBER: ${{ github.event.pull_request.number }}
+
+jobs:
+  affected:
+    if: >-
+      github.event.pull_request.state == 'open' &&
+      (
+        (github.event.action == 'labeled' && github.event.label.name == 'deploy') ||
+        (github.event.action != 'labeled' &&
+         github.event.action != 'unlabeled' &&
+         contains(github.event.pull_request.labels.*.name, 'deploy'))
+      )
+    runs-on: ["ubuntu-latest"]
+    container:
+      image: ghcr.io/cloudposse/atmos:${{ vars.ATMOS_VERSION }}
+    outputs:
+      matrix: ${{ steps.affected.outputs.matrix }}
+      count: ${{ steps.affected.outputs.count }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Determine Affected Preview Components
+        id: affected
+        run: |
+          atmos describe affected --stack preview --format matrix --output-file "$GITHUB_OUTPUT"
+
+  build:
+    needs: [affected]
+    if: needs.affected.result == 'success' && needs.affected.outputs.count != '0'
+    runs-on: ["ubuntu-latest"]
+    container:
+      image: ghcr.io/cloudposse/atmos:${{ vars.ATMOS_VERSION }}
+    defaults:
+      run:
+        shell: bash
+    outputs:
+      image: ${{ steps.build.outputs.image }}
+      tag: ${{ steps.build.outputs.tag }}
+    steps:
+      - name: Install Docker CLI
+        run: apt-get update && apt-get install -y docker.io bc
+
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: AWS Auth
+        run: |
+          atmos auth env --identity plat-dev/terraform --format=github
+          atmos auth login --identity plat-dev/terraform
+
+      - name: Build
+        id: build
+        uses: cloudposse/github-action-docker-build-push@v3
+        with:
+          organization: cloudposse-examples
+          repository: atmos-pro-with-ecs
+          registry: ${{ vars.ECR_REGISTRY }}
+          workdir: app
+          driver-opts: image=mirror.gcr.io/moby/buildkit:buildx-stable-1
+          docker-metadata-pr-head-sha: true
+
+  deploy:
+    needs: [affected, build]
+    if: needs.affected.result == 'success' && needs.build.result == 'success' && needs.affected.outputs.count != '0'
+    runs-on: ["ubuntu-latest"]
+    container:
+      image: ghcr.io/cloudposse/atmos:${{ vars.ATMOS_VERSION }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.affected.outputs.matrix) }}
+    defaults:
+      run:
+        shell: bash
+    environment:
+      name: preview
+      url: ${{ steps.deploy.outputs.output_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Deploy Preview
+        id: deploy
+        env:
+          ATMOS_PRO_WORKSPACE_ID: ${{ vars.ATMOS_PRO_WORKSPACE_ID }}
+          APP_IMAGE: ${{ needs.build.outputs.image }}:${{ needs.build.outputs.tag }}
+          GITHUB_SHA: ${{ github.event.pull_request.head.sha }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          atmos terraform deploy "${{ matrix.component }}" -s "${{ matrix.stack }}" --upload
+
+  cleanup:
+    if: >-
+      github.event.action == 'closed' ||
+      (github.event.action == 'unlabeled' && github.event.label.name == 'deploy')
+    runs-on: ["ubuntu-latest"]
+    container:
+      image: ghcr.io/cloudposse/atmos:${{ vars.ATMOS_VERSION }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.base.ref }}
+
+      - name: Destroy Preview
+        run: |
+          atmos terraform destroy app -s preview -auto-approve

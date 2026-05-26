@@ -1,17 +1,17 @@
 # Workflows
 
-GitHub Actions CI/CD pipelines, orchestrated by [Atmos Pro](https://atmos.tools/pro) for dev/preview and direct for staging/prod.
+GitHub Actions CI/CD pipelines, orchestrated by [Atmos Pro](https://atmos.tools/pro) for broad PR planning and merge-queue dev apply, with direct workflows for preview and staging/prod.
 
 | Workflow | Trigger | Action |
 |----------|---------|--------|
-| `atmos-pro.yaml` | Pull request, merge queue | Build image, run tests, `atmos describe affected --upload`. Atmos Pro dispatches plan/apply based on `settings.pro` in the affected stacks. |
+| `atmos-pro.yaml` | Pull request, merge queue | Build image and run tests. Pull requests run broad `atmos describe affected --upload`; merge queue runs `atmos describe affected --stack dev --upload` so Atmos Pro applies dev only. |
 | `validate.yml` | Pull request, merge queue | Lint CODEOWNERS |
 | `main-branch.yaml` | Push to `main` | Update draft release notes |
 | `release.yaml` | Published release, manual dispatch | Promote image, deploy to staging and/or prod |
 | `atmos-terraform-plan.yaml` | Workflow dispatch (Atmos Pro) | `atmos terraform plan --upload` |
 | `atmos-terraform-apply.yaml` | Workflow dispatch (Atmos Pro) | `atmos terraform deploy --upload` |
 | `atmos-pro-upload-instances.yaml` | Push to `main`, daily schedule, manual | `atmos list instances --upload` — keeps inventory current |
-| `preview-cleanup.yml` | PR closed | Destroy preview environment |
+| `preview.yml` | Pull request | Compute affected preview matrix, build image, deploy preview when `deploy` is present; destroy preview on PR close or label removal |
 | `labeler.yaml` | Pull request | Auto-label based on changed files |
 
 ## Conventions
@@ -22,9 +22,9 @@ Workflow files are named for *where they fire from* (a feature branch, the main 
 
 ### Dev deploy runs in the merge queue, dispatched by Atmos Pro — not on push to `main`
 
-The merge queue runs `build` + `test` + `describe affected` on a temporary commit (the PR rebased on top of `main`). `atmos describe affected --upload` reports the queue commit's affected stacks to Atmos Pro, which dispatches `atmos-terraform-apply.yaml` via `workflow_dispatch`. The dispatched apply runs `atmos terraform deploy --upload`, which posts a status check on the queue commit. The merge queue waits on that status check; if the apply fails, the PR is rejected from the queue and never lands on `main`.
+The merge queue runs `build` + `test` + `describe affected` on a temporary commit (the PR rebased on top of `main`). On `merge_group`, `atmos-pro.yaml` runs `atmos describe affected --stack dev --upload`, which reports only the dev impact for queue apply. Atmos Pro dispatches `atmos-terraform-apply.yaml` via `workflow_dispatch`; the dispatched apply runs `atmos terraform deploy --upload`, which posts a status check on the queue commit. The merge queue waits on that status check; if the apply fails, the PR is rejected from the queue and never lands on `main`.
 
-This catches a broken Terraform apply *before* it breaks dev — a stronger guarantee than deploying after merge and noticing the failure. Nothing in this repo runs `atmos terraform deploy` directly; everything goes through Atmos Pro's dispatch flow.
+This catches a broken Terraform apply *before* it breaks dev — a stronger guarantee than deploying after merge and noticing the failure. Dev apply goes through Atmos Pro's dispatch flow; preview and release deployments run directly from dedicated workflows.
 
 The `push: main` event then fires on a commit that has already been built, tested, and dev-applied. `main-branch.yaml` therefore only updates the draft release; it does not redo work the queue already did.
 
@@ -40,7 +40,7 @@ Triggering on `release: published` is great for "deploy the new version," but us
 
 ### Merge queue is required for `main`
 
-Apply only runs from `merge_group.checks_requested` in `terraform/stacks/defaults/atmos-pro.yaml` — there is no `pull_request.merged` backstop. Per the [Atmos Pro docs](https://atmos-pro.com/docs/configure/stacks#github-merge-queue-mergegroup), configuring both would apply twice for the same change.
+Apply only runs from `merge_group.checks_requested` in `terraform/stacks/defaults/atmos-pro.yaml` — there is no `pull_request.merged` backstop. Per the [Atmos Pro docs](https://atmos-pro.com/docs/configure/stacks#github-merge-queue-mergegroup), configuring both would apply twice for the same change. The workflow constrains the merge-group upload with `--stack dev`, so preview/staging/prod are not applied by the queue.
 
 Branch protection on `main` is configured to require the queue, so a PR cannot land without going through it and applying successfully. If the queue is ever bypassed (e.g. admin push) and dev drifts from `main`, recover by manually dispatching `atmos-terraform-apply.yaml` (`component=app`, `stack=dev`, `sha=<main-sha>`, `github_environment=dev`) or running `atmos terraform deploy app -s dev` locally from the corresponding ref.
 
@@ -65,7 +65,7 @@ sequenceDiagram
     GH->>GA: Trigger atmos-pro workflow (merge_group)
     GA->>ECR: Build & push Docker image
     GA->>GA: Run Go tests
-    GA->>AP: atmos describe affected --upload (queue commit SHA)
+    GA->>AP: atmos describe affected --stack dev --upload (queue commit SHA)
     AP->>GA: Dispatch atmos-terraform-apply.yaml (dev)
     GA->>ECS: atmos terraform deploy app -s dev --upload
     ECS-->>AP: Apply status
@@ -75,7 +75,7 @@ sequenceDiagram
     GA->>GH: Update draft release notes
 ```
 
-## Pull Request → Preview Environment (via Atmos Pro, label-gated)
+## Pull Request → Preview Environment (direct, label-gated)
 
 ```mermaid
 sequenceDiagram
@@ -83,23 +83,16 @@ sequenceDiagram
     participant GH as GitHub
     participant GA as GitHub Actions
     participant ECR as AWS ECR
-    participant AP as Atmos Pro
     participant ECS as AWS ECS
 
     Dev->>GH: Open PR with `deploy` label
-    GH->>GA: Trigger atmos-pro workflow (pull_request)
+    GH->>GA: Trigger preview workflow (pull_request)
+    GA->>GA: atmos describe affected --stack preview --format matrix
     GA->>ECR: Build & push Docker image
-    GA->>GA: Run Go tests
-    GA->>AP: atmos describe affected --upload
-    AP->>GA: Dispatch atmos-terraform-plan.yaml
-    GA->>ECS: atmos terraform plan app -s preview --upload
-    ECS-->>AP: Plan status
-    Note over Dev,AP: Developer reviews plan in Atmos Pro UI
-    AP->>GA: Dispatch atmos-terraform-apply.yaml (on approval)
-    GA->>ECS: atmos terraform deploy app -s preview --upload
-    ECS-->>AP: Apply status
+    GA->>ECS: atmos terraform deploy affected components -s preview --upload
+    ECS-->>GA: Preview deployed
     Note over Dev,GH: PR closed
-    GH->>GA: Trigger preview-cleanup workflow
+    GH->>GA: Trigger preview workflow cleanup
     GA->>ECS: atmos terraform destroy app -s preview
 ```
 
@@ -154,9 +147,9 @@ sequenceDiagram
 graph LR
     A[Open PR] --> B[Build & Test]
     B --> C{PR has<br/>`deploy` label?}
-    C -->|Yes| D[Atmos Pro:<br/>Plan Preview]
+    C -->|Yes| D[Preview workflow:<br/>Affected Matrix]
     C -->|No| E[Approve]
-    D --> Dapply[Atmos Pro:<br/>Apply Preview]
+    D --> Dapply[Deploy Preview]
     Dapply --> E
     E --> F[Click<br/>Merge when ready]
     F --> G[Merge Queue:<br/>Build, Test,<br/>Describe Affected]

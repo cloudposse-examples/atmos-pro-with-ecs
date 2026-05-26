@@ -80,18 +80,18 @@ atmos down
 
 ### CI/CD Workflows
 
-These workflows implement the workload deployment pipeline: build the image, run `atmos describe affected` to detect changed workloads, then let Atmos Pro dispatch plan/apply per affected stack. See [`.github/workflows/`](.github/workflows/) for detailed workflow diagrams.
+These workflows implement the workload deployment pipeline: build the image, run `atmos describe affected` to detect changed workloads, let Atmos Pro dispatch plan/apply for managed lifecycles, and run direct workflows for preview and release deploys. See [`.github/workflows/`](.github/workflows/) for detailed workflow diagrams.
 
 | Workflow | Trigger | Action |
 |----------|---------|--------|
-| `atmos-pro.yaml` | Pull request, merge queue | Build image → Run tests → `atmos describe affected --upload` → Atmos Pro dispatches plan/apply per `settings.pro` |
+| `atmos-pro.yaml` | Pull request, merge queue | Build image → Run tests → broad PR `describe affected --upload`; merge queue `describe affected --stack dev --upload` → Atmos Pro applies dev only |
 | `validate.yml` | Pull request, merge queue | Lint CODEOWNERS |
 | `main-branch.yaml` | Push to `main` | Update draft release notes |
 | `release.yaml` | Published release, manual dispatch | Promote image → Deploy to staging and/or prod |
 | `atmos-terraform-plan.yaml` | Workflow dispatch (Atmos Pro) | `atmos terraform plan --upload` |
 | `atmos-terraform-apply.yaml` | Workflow dispatch (Atmos Pro) | `atmos terraform deploy --upload` |
 | `atmos-pro-upload-instances.yaml` | Push to `main`, daily schedule, manual | `atmos list instances --upload` |
-| `preview-cleanup.yml` | PR closed | Destroy preview environment |
+| `preview.yml` | Pull request | Compute affected preview matrix, build image, deploy preview when `deploy` is present; destroy preview on PR close or label removal |
 
 ### Deployment
 
@@ -135,10 +135,10 @@ atmos terraform deploy app -s staging
 atmos terraform deploy app -s prod
 ```
 
-#### CI/CD Deployment (via Atmos Pro)
+#### CI/CD Deployment
 
-1. Open a PR with `deploy` label → builds image → `describe-affected --stack preview` uploads to Atmos Pro → Atmos Pro dispatches plan workflow for preview
-2. Click "Merge when ready" → merge queue runs build/test/`describe-affected` on the queue commit → Atmos Pro dispatches apply for dev → check-suite status gates the queue → on success, fast-forward to `main`
+1. Open a PR with `deploy` label → computes affected preview matrix → builds image → deploys affected preview components directly with `--upload`
+2. Click "Merge when ready" → merge queue runs build/test/`describe affected --stack dev --upload` on the queue commit → Atmos Pro dispatches apply for dev → check-suite status gates the queue → on success, fast-forward to `main`
 3. Create a GitHub release → promotes image → deploys to staging and prod (direct)
 4. Run `release.yaml` via workflow dispatch with a `tag` and `environment` to roll back or hotfix without cutting a new release
 
