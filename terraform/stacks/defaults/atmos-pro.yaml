@@ -27,7 +27,11 @@ settings:
         workflows: *plan-wf-config
       reopened:
         workflows: *plan-wf-config
-      # No `merged:` — apply runs on the queue commit via `merge_group.checks_requested`
+      # The affected-stacks workflow uploads again after the PR merges.
+      # Keep this lifecycle configured; this example uses plan/verification here
+      # so queue apply remains the dev deployment gate.
+      merged:
+        workflows: *plan-wf-config
     merge_group:
       checks_requested:
         workflows: *apply-wf-config
