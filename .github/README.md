@@ -84,13 +84,13 @@ These workflows implement the workload deployment pipeline: build the image, run
 
 | Workflow | Trigger | Action |
 |----------|---------|--------|
-| `feature-branch.yml` | Pull request, merge queue | Build image → Run tests → Describe affected → Atmos Pro plans preview (`deploy` label) or applies dev (merge queue) |
+| `atmos-pro.yaml` | Pull request, merge queue | Build image → Run tests → `atmos describe affected --upload` → Atmos Pro dispatches plan/apply per `settings.pro` |
 | `validate.yml` | Pull request, merge queue | Lint CODEOWNERS |
 | `main-branch.yaml` | Push to `main` | Update draft release notes |
 | `release.yaml` | Published release, manual dispatch | Promote image → Deploy to staging and/or prod |
-| `atmos-terraform-plan.yaml` | Workflow dispatch (Atmos Pro) | Run `atmos terraform plan` and upload status |
-| `atmos-terraform-apply.yaml` | Workflow dispatch (Atmos Pro) | Run `atmos terraform deploy` and upload status |
-| `atmos-pro-list-deployments.yaml` | Daily schedule / manual | Sync instance inventory to Atmos Pro |
+| `atmos-terraform-plan.yaml` | Workflow dispatch (Atmos Pro) | `atmos terraform plan --upload` |
+| `atmos-terraform-apply.yaml` | Workflow dispatch (Atmos Pro) | `atmos terraform deploy --upload` |
+| `atmos-pro-upload-instances.yaml` | Push to `main`, daily schedule, manual | `atmos list instances --upload` |
 | `preview-cleanup.yml` | PR closed | Destroy preview environment |
 
 ### Deployment
