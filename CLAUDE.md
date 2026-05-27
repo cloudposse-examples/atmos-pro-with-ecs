@@ -26,7 +26,7 @@ Dev deployments are orchestrated by Atmos Pro from the merge queue. Preview is a
 1. CI builds the Docker image and tags it with the commit SHA
 2. `atmos describe affected --upload` sends affected stacks to Atmos Pro
 3. Atmos Pro dispatches `atmos-terraform-plan.yaml` or `atmos-terraform-apply.yaml` via workflow dispatch
-4. Plan/apply workflows reconstruct `APP_IMAGE` from the SHA input and run `atmos terraform … --upload` so Atmos Pro reports a check-suite status back on the commit
+4. Plan/apply workflows reconstruct `APP_IMAGE` from the SHA input and run `atmos terraform … --upload-status` so Atmos Pro reports a check-suite status back on the commit
 
 Trigger contexts:
 

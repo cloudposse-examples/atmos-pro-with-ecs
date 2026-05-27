@@ -88,8 +88,8 @@ These workflows implement the workload deployment pipeline: build the image, run
 | `validate.yml` | Pull request, merge queue | Lint CODEOWNERS |
 | `main-branch.yaml` | Push to `main` | Update draft release notes |
 | `release.yaml` | Published release, manual dispatch | Promote image → Deploy to staging and/or prod |
-| `atmos-terraform-plan.yaml` | Workflow dispatch (Atmos Pro) | `atmos terraform plan --upload` |
-| `atmos-terraform-apply.yaml` | Workflow dispatch (Atmos Pro) | `atmos terraform deploy --upload` |
+| `atmos-terraform-plan.yaml` | Workflow dispatch (Atmos Pro) | `atmos terraform plan --upload-status` |
+| `atmos-terraform-apply.yaml` | Workflow dispatch (Atmos Pro) | `atmos terraform deploy --upload-status` |
 | `atmos-pro-upload-instances.yaml` | Push to `main`, daily schedule, manual | `atmos list instances --upload` |
 | `preview.yml` | Pull request | Compute affected preview matrix, build image, deploy preview when `deploy` is present; destroy preview on PR close or label removal |
 
@@ -137,7 +137,7 @@ atmos terraform deploy app -s prod
 
 #### CI/CD Deployment
 
-1. Open a PR with `deploy` label → computes affected preview matrix → builds image → deploys affected preview components directly with `--upload`
+1. Open a PR with `deploy` label → computes affected preview matrix → builds image → deploys affected preview components directly with `--upload-status`
 2. Click "Merge when ready" → merge queue runs build/test/`describe affected --stack dev --upload` on the queue commit → Atmos Pro dispatches apply for dev → check-suite status gates the queue → on success, fast-forward to `main`
 3. Create a GitHub release → promotes image → deploys to staging and prod (direct)
 4. Run `release.yaml` via workflow dispatch with a `tag` and `environment` to roll back or hotfix without cutting a new release

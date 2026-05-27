@@ -8,8 +8,8 @@ GitHub Actions CI/CD pipelines, orchestrated by [Atmos Pro](https://atmos.tools/
 | `validate.yml` | Pull request, merge queue | Lint CODEOWNERS |
 | `main-branch.yaml` | Push to `main` | Update draft release notes |
 | `release.yaml` | Published release, manual dispatch | Promote image, deploy to staging and/or prod |
-| `atmos-terraform-plan.yaml` | Workflow dispatch (Atmos Pro) | `atmos terraform plan --upload` |
-| `atmos-terraform-apply.yaml` | Workflow dispatch (Atmos Pro) | `atmos terraform deploy --upload` |
+| `atmos-terraform-plan.yaml` | Workflow dispatch (Atmos Pro) | `atmos terraform plan --upload-status` |
+| `atmos-terraform-apply.yaml` | Workflow dispatch (Atmos Pro) | `atmos terraform deploy --upload-status` |
 | `atmos-pro-upload-instances.yaml` | Push to `main`, daily schedule, manual | `atmos list instances --upload` — keeps inventory current |
 | `preview.yml` | Pull request | Compute affected preview matrix, build image, deploy preview when `deploy` is present; destroy preview on PR close or label removal |
 | `labeler.yaml` | Pull request | Auto-label based on changed files |
@@ -22,7 +22,7 @@ Workflow files are named for *where they fire from* (a feature branch, the main 
 
 ### Dev deploy runs in the merge queue, dispatched by Atmos Pro — not on push to `main`
 
-The merge queue runs `build` + `test` + `describe affected` on a temporary commit (the PR rebased on top of `main`). On `merge_group`, `atmos-pro.yaml` runs `atmos describe affected --stack dev --upload`, which reports only the dev impact for queue apply. Atmos Pro dispatches `atmos-terraform-apply.yaml` via `workflow_dispatch`; the dispatched apply runs `atmos terraform deploy --upload`, which posts a status check on the queue commit. The merge queue waits on that status check; if the apply fails, the PR is rejected from the queue and never lands on `main`.
+The merge queue runs `build` + `test` + `describe affected` on a temporary commit (the PR rebased on top of `main`). On `merge_group`, `atmos-pro.yaml` runs `atmos describe affected --stack dev --upload`, which reports only the dev impact for queue apply. Atmos Pro dispatches `atmos-terraform-apply.yaml` via `workflow_dispatch`; the dispatched apply runs `atmos terraform deploy --upload-status`, which posts a status check on the queue commit. The merge queue waits on that status check; if the apply fails, the PR is rejected from the queue and never lands on `main`.
 
 This catches a broken Terraform apply *before* it breaks dev — a stronger guarantee than deploying after merge and noticing the failure. Dev apply goes through Atmos Pro's dispatch flow; preview and release deployments run directly from dedicated workflows.
 
@@ -67,7 +67,7 @@ sequenceDiagram
     GA->>GA: Run Go tests
     GA->>AP: atmos describe affected --stack dev --upload (queue commit SHA)
     AP->>GA: Dispatch atmos-terraform-apply.yaml (dev)
-    GA->>ECS: atmos terraform deploy app -s dev --upload
+    GA->>ECS: atmos terraform deploy app -s dev --upload-status
     ECS-->>AP: Apply status
     AP-->>GH: Check-suite status on queue commit
     GH->>GH: Fast-forward main to queue commit
@@ -89,7 +89,7 @@ sequenceDiagram
     GH->>GA: Trigger preview workflow (pull_request)
     GA->>GA: atmos describe affected --stack preview --format matrix
     GA->>ECR: Build & push Docker image
-    GA->>ECS: atmos terraform deploy affected components -s preview --upload
+    GA->>ECS: atmos terraform deploy affected components -s preview --upload-status
     ECS-->>GA: Preview deployed
     Note over Dev,GH: PR closed
     GH->>GA: Trigger preview workflow cleanup
