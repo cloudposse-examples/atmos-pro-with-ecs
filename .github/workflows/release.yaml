@@ -82,7 +82,7 @@ jobs:
     name: deploy / staging
     environment:
       name: staging
-      url: ${{ steps.deploy.outputs.url }}
+      url: ${{ steps.deploy.outputs.output_url }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -111,7 +111,7 @@ jobs:
     name: deploy / production
     environment:
       name: prod
-      url: ${{ steps.deploy.outputs.url }}
+      url: ${{ steps.deploy.outputs.output_url }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
