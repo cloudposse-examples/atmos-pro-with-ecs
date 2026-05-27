@@ -4,7 +4,7 @@ GitHub Actions CI/CD pipelines, orchestrated by [Atmos Pro](https://atmos.tools/
 
 | Workflow | Trigger | Action |
 |----------|---------|--------|
-| `atmos-pro.yaml` | Pull request, merge queue | Build image and run tests. Pull requests run broad `atmos describe affected --upload`; merge queue runs `atmos describe affected --stack dev --upload` so Atmos Pro applies dev only. |
+| `atmos-pro.yaml` | Pull request, merged PR, merge queue | Build image and run tests. Pull requests and merged PRs run broad `atmos describe affected --upload`; merge queue runs `atmos describe affected --stack dev --upload` so Atmos Pro applies dev only. |
 | `validate.yml` | Pull request, merge queue | Lint CODEOWNERS |
 | `main-branch.yaml` | Push to `main` | Update draft release notes |
 | `release.yaml` | Published release, manual dispatch | Promote image, deploy to staging and/or prod |
@@ -24,7 +24,7 @@ Workflow files are named for *where they fire from* (a feature branch, the main 
 
 The merge queue runs `build` + `test` + `describe affected` on a temporary commit (the PR rebased on top of `main`). On `merge_group`, `atmos-pro.yaml` runs `atmos describe affected --stack dev --upload`, which reports only the dev impact for queue apply. Atmos Pro dispatches `atmos-terraform-apply.yaml` via `workflow_dispatch`; the dispatched apply runs `atmos terraform deploy --upload-status`, which posts a status check on the queue commit. The merge queue waits on that status check; if the apply fails, the PR is rejected from the queue and never lands on `main`.
 
-This catches a broken Terraform apply *before* it breaks dev — a stronger guarantee than deploying after merge and noticing the failure. Dev apply goes through Atmos Pro's dispatch flow; preview and release deployments run directly from dedicated workflows.
+This catches a broken Terraform apply *before* it breaks dev — a stronger guarantee than deploying after merge and noticing the failure. After the queue commit lands, the merged PR event runs a broad `atmos describe affected --upload` and dispatches plan workflows for post-merge visibility without applying again. Dev apply goes through Atmos Pro's dispatch flow; preview and release deployments run directly from dedicated workflows.
 
 The `push: main` event then fires on a commit that has already been built, tested, and dev-applied. `main-branch.yaml` therefore only updates the draft release; it does not redo work the queue already did.
 
@@ -40,7 +40,7 @@ Triggering on `release: published` is great for "deploy the new version," but us
 
 ### Merge queue is required for `main`
 
-Apply only runs from `merge_group.checks_requested` in `terraform/stacks/defaults/atmos-pro.yaml` — there is no `pull_request.merged` backstop. Per the [Atmos Pro docs](https://atmos-pro.com/docs/configure/stacks#github-merge-queue-mergegroup), configuring both would apply twice for the same change. The workflow constrains the merge-group upload with `--stack dev`, so preview/staging/prod are not applied by the queue.
+Apply only runs from `merge_group.checks_requested` in `terraform/stacks/defaults/atmos-pro.yaml`. The `pull_request.merged` lifecycle dispatches plan workflows only, so post-merge PR visibility is preserved without applying twice. The workflow constrains the merge-group upload with `--stack dev`, so preview/staging/prod are not applied by the queue.
 
 Branch protection on `main` is configured to require the queue, so a PR cannot land without going through it and applying successfully. If the queue is ever bypassed (e.g. admin push) and dev drifts from `main`, recover by manually dispatching `atmos-terraform-apply.yaml` (`component=app`, `stack=dev`, `sha=<main-sha>`, `github_environment=dev`) or running `atmos terraform deploy app -s dev` locally from the corresponding ref.
 
@@ -71,6 +71,9 @@ sequenceDiagram
     ECS-->>AP: Apply status
     AP-->>GH: Check-suite status on queue commit
     GH->>GH: Fast-forward main to queue commit
+    GH->>GA: Trigger atmos-pro workflow (pull_request.closed merged)
+    GA->>AP: atmos describe affected --upload (merge commit SHA)
+    AP->>GA: Dispatch atmos-terraform-plan.yaml (affected stacks)
     GH->>GA: Trigger main-branch workflow (push)
     GA->>GH: Update draft release notes
 ```
