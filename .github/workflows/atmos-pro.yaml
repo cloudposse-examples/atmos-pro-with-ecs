@@ -95,6 +95,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [[ "${{ github.event_name }}" == "merge_group" ]]; then
+            git config --global --add safe.directory "$GITHUB_WORKSPACE"
+            git symbolic-ref refs/remotes/origin/HEAD refs/remotes/origin/main
             atmos describe affected --stack dev --upload
           else
             atmos describe affected --upload
