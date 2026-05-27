@@ -95,7 +95,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [[ "${{ github.event_name }}" == "merge_group" ]]; then
-            atmos describe affected --stack dev --base refs/remotes/origin/main --upload
+            git worktree add --detach "$RUNNER_TEMP/atmos-base" refs/remotes/origin/main
+            atmos describe affected --stack dev --repo-path "$RUNNER_TEMP/atmos-base" --upload
           else
             atmos describe affected --upload
           fi
