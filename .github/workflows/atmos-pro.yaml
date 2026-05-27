@@ -96,9 +96,8 @@ jobs:
         run: |
           if [[ "${{ github.event_name }}" == "merge_group" ]]; then
             git config --global --add safe.directory "$GITHUB_WORKSPACE"
-            git worktree add --detach "$RUNNER_TEMP/atmos-base" refs/remotes/origin/main
-            git config --global --add safe.directory "$RUNNER_TEMP/atmos-base"
-            atmos describe affected --stack dev --repo-path "$RUNNER_TEMP/atmos-base" --upload
+            git symbolic-ref refs/remotes/origin/HEAD refs/remotes/origin/main
+            atmos describe affected --stack dev --upload
           else
             atmos describe affected --upload
           fi
