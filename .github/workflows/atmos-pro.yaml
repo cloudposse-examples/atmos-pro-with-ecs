@@ -2,7 +2,7 @@ name: Atmos Pro
 on:
   pull_request:
     branches: ["main"]
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, closed]
   merge_group:
     branches: ["main"]
 
@@ -22,6 +22,10 @@ env:
 jobs:
   test:
     needs: [ build ]
+    if: |
+      github.event_name != 'pull_request' ||
+      github.event.action != 'closed' ||
+      github.event.pull_request.merged == true
     runs-on: ["ubuntu-latest"]
     steps:
       - name: Checkout
@@ -38,6 +42,10 @@ jobs:
         run: go test -v ./...
 
   build:
+    if: |
+      github.event_name != 'pull_request' ||
+      github.event.action != 'closed' ||
+      github.event.pull_request.merged == true
     runs-on: ["ubuntu-latest"]
     container:
       image: ghcr.io/cloudposse/atmos:${{ vars.ATMOS_VERSION }}
@@ -81,12 +89,16 @@ jobs:
         shell: bash
     if: |
       github.event_name == 'merge_group' ||
-      !contains(github.event.pull_request.labels.*.name, 'no-apply')
+      github.event.pull_request.merged == true ||
+      (
+        github.event.action != 'closed' &&
+        !contains(github.event.pull_request.labels.*.name, 'no-apply')
+      )
     steps:
       - name: Checkout
         uses: actions/checkout@v6
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ github.event.pull_request.merged && github.event.pull_request.merge_commit_sha || github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
 
       - name: Determine Affected Stacks
@@ -95,8 +107,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [[ "${{ github.event_name }}" == "merge_group" ]]; then
-            git config --global --add safe.directory "$GITHUB_WORKSPACE"
-            git symbolic-ref refs/remotes/origin/HEAD refs/remotes/origin/main
             atmos describe affected --stack dev --upload
           else
             atmos describe affected --upload

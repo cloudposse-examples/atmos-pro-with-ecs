@@ -94,7 +94,7 @@ usage: |-
 
   | Workflow | Trigger | Action |
   |----------|---------|--------|
-  | `atmos-pro.yaml` | Pull request, merge queue | Build image → Run tests → broad PR `describe affected --upload`; merge queue `describe affected --stack dev --upload` → Atmos Pro applies dev only |
+  | `atmos-pro.yaml` | Pull request, merged PR, merge queue | Build image → Run tests → broad PR/merged PR `describe affected --upload`; merge queue `describe affected --stack dev --upload` → Atmos Pro applies dev only |
   | `validate.yml` | Pull request, merge queue | Lint CODEOWNERS |
   | `main-branch.yaml` | Push to `main` | Update draft release notes |
   | `release.yaml` | Published release, manual dispatch | Promote image → Deploy to staging and/or prod |
@@ -148,7 +148,7 @@ usage: |-
   #### CI/CD Deployment
 
   1. Open a PR with `deploy` label → computes affected preview matrix → builds image → deploys affected preview components directly with `--upload-status`
-  2. Click "Merge when ready" → merge queue runs build/test/`describe affected --stack dev --upload` on the queue commit → Atmos Pro dispatches apply for dev → check-suite status gates the queue → on success, fast-forward to `main`
+  2. Click "Merge when ready" → merge queue runs build/test/`describe affected --stack dev --upload` on the queue commit → Atmos Pro dispatches apply for dev → check-suite status gates the queue → on success, fast-forward to `main` and run post-merge affected-stack plans for visibility
   3. Create a GitHub release → promotes image → deploys to staging and prod (direct)
   4. Run `release.yaml` via workflow dispatch with a `tag` and `environment` to roll back or hotfix without cutting a new release
 

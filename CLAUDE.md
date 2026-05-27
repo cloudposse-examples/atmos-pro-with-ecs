@@ -32,6 +32,7 @@ Trigger contexts:
 
 - **PR with `deploy` label** (`pull_request`): `atmos-pro.yaml` still runs broad `describe affected --upload` for PR impact visibility; `preview.yml` separately builds the PR image and deploys the affected preview matrix.
 - **Merge queue** (`merge_group`): `atmos-pro.yaml` runs `describe affected --stack dev --upload`, so Atmos Pro dispatches apply for dev only. The Atmos Pro check-suite status on the queue commit is the required check that gates the merge — a broken Terraform apply rejects the PR from the queue before it reaches `main`.
+- **Merged PR** (`pull_request.closed` with `merged=true`): `atmos-pro.yaml` runs broad `describe affected --upload` against the merge commit, so Atmos Pro dispatches plan workflows for post-merge visibility without applying again.
 - **Push to `main`**: `main-branch.yaml` only updates the draft release. The queue commit was already built/tested/dev-applied, so nothing else runs here.
 - **Release published** (or `release.yaml` `workflow_dispatch`): promotes the image and runs direct `atmos terraform deploy` for staging and prod. Direct deploys for these environments preserve queue throughput (env protection rules would otherwise cause head-of-line blocking). `workflow_dispatch` accepts a `tag` and `environment` for rollback / hotfix / selective redeploy without cutting a new release.
 
