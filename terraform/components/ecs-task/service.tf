@@ -105,9 +105,9 @@ resource "aws_ecs_service" "default" {
   availability_zone_rebalancing = "DISABLED"
 
   capacity_provider_strategy {
-    capacity_provider = "FARGATE"
+    capacity_provider = var.service.capacity_provider
     weight            = 1
-    base              = 1
+    base              = 0
   }
 
   # placement_constraints {
