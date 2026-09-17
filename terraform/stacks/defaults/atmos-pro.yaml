@@ -1,37 +1,4 @@
-plan-wf-config: &plan-wf-config
-  atmos-terraform-plan.yaml:
-    inputs:
-      component: "{{ .atmos_component }}"
-      stack: "{{ .atmos_stack }}"
-
-apply-wf-config: &apply-wf-config
-  atmos-terraform-apply.yaml:
-    inputs:
-      component: "{{ .atmos_component }}"
-      stack: "{{ .atmos_stack }}"
-      github_environment: "{{ .vars.stage }}"
-
 settings:
   pro:
-    enabled: true
-    drift_detection:
-      enabled: true
-      detect:
-        workflows: *plan-wf-config
-      remediate:
-        workflows: *apply-wf-config
-    pull_request:
-      opened:
-        workflows: *plan-wf-config
-      synchronize:
-        workflows: *plan-wf-config
-      reopened:
-        workflows: *plan-wf-config
-      merged:
-        workflows: *plan-wf-config
-    merge_group:
-      checks_requested:
-        workflows: *apply-wf-config
-    release:
-      released:
-        workflows: *apply-wf-config
+    # The Voyager demo was decommissioned in September 2026.
+    enabled: false

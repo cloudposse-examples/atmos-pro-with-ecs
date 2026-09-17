@@ -3,6 +3,9 @@ components:
     app:
       metadata:
         component: ecs-task
+        # Voyager was retired in September 2026. Keep its configuration only
+        # as recovery documentation; abstract components cannot be deployed.
+        type: abstract
       dependencies:
         components:
           - kind: folder
@@ -36,14 +39,9 @@ components:
                     awslogs-region: "us-east-2"
                     awslogs-stream-prefix: "voyager"
         url_path: /dashboard
-        service:
-          capacity_provider: FARGATE_SPOT
-          force_new_deployment: true
         autoscaling:
-          # Voyager is an interruption-tolerant demonstration service. Keep
-          # one Spot-backed task rather than two on-demand tasks.
-          min_capacity: 1
-          max_capacity: 1
+          min_capacity: 2
+          max_capacity: 4
           scale_up_cooldown: 30
           scale_down_cooldown: 60
           rule:

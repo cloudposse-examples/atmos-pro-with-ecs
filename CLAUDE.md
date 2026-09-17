@@ -2,6 +2,11 @@
 
 Example containerized Go web application deployed to AWS ECS Fargate using Atmos, Atmos Pro, and OpenTofu.
 
+> [!IMPORTANT]
+> The Voyager AWS deployment was decommissioned in September 2026. The
+> application and Terraform component remain as reference material, but the
+> stack is abstract and all deployment workflows are disabled.
+
 ## Quick Reference
 
 ```bash
