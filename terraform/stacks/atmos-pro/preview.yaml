@@ -1,0 +1,41 @@
+plan-wf-config: &plan-wf-config
+  atmos-terraform-plan.yaml:
+    inputs:
+      component: "{{ .atmos_component }}"
+      stack: "{{ .atmos_stack }}"
+
+apply-wf-config: &apply-wf-config
+  atmos-terraform-apply.yaml:
+    inputs:
+      component: "{{ .atmos_component }}"
+      stack: "{{ .atmos_stack }}"
+      github_environment: "{{ .vars.stage }}"
+
+destroy-wf-config: &destroy-wf-config
+  atmos-terraform-destroy.yaml:
+    inputs:
+      component: "{{ .atmos_component }}"
+      stack: "{{ .atmos_stack }}"
+      github_environment: "{{ .vars.stage }}"
+
+
+settings:
+  pro:
+    enabled: true
+    drift_detection:
+      enabled: false
+    pull_request:
+      opened:
+        workflows: *apply-wf-config
+      synchronize:
+        workflows: *apply-wf-config
+      reopened:
+        workflows: *apply-wf-config
+      merged:
+        workflows: *destroy-wf-config
+    merge_group:
+      checks_requested:
+        workflows: *apply-wf-config
+    release:
+      released:
+        workflows: *apply-wf-config

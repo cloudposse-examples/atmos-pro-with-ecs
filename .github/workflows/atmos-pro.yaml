@@ -47,15 +47,13 @@ jobs:
       github.event.action != 'closed' ||
       github.event.pull_request.merged == true
     runs-on: ["ubuntu-latest"]
-    container:
-      image: ghcr.io/cloudposse/atmos:${{ vars.ATMOS_VERSION }}
-    defaults:
-      run:
-        shell: bash
     steps:
-      - name: Install Docker CLI
-        run: apt-get update && apt-get install -y docker.io bc
-
+      - name: Install Atmos
+        uses: cloudposse/github-action-setup-atmos@v3
+        with:
+          install-wrapper: false
+          atmos-version: ${{ vars.ATMOS_VERSION }}
+              
       - name: Checkout
         uses: actions/checkout@v6
 
@@ -68,7 +66,7 @@ jobs:
         id: build
         uses: cloudposse/github-action-docker-build-push@v3
         with:
-          organization: cloudposse-examples
+          organization: cloudposse-sandbox
           repository: atmos-pro-with-ecs
           registry: ${{ vars.ECR_REGISTRY }}
           workdir: app
@@ -104,6 +102,7 @@ jobs:
       - name: Determine Affected Stacks
         env:
           ATMOS_PRO_WORKSPACE_ID: ${{ vars.ATMOS_PRO_WORKSPACE_ID }}
+          ATMOS_PRO_BASE_URL: ${{ vars.ATMOS_PRO_BASE_URL }}          
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [[ "${{ github.event_name }}" == "merge_group" ]]; then

@@ -1,5 +1,5 @@
-name: Atmos Terraform Apply
-run-name: apply ${{ inputs.component }}/${{ inputs.stack }}
+name: Atmos Terraform Destroy
+run-name: destroy ${{ inputs.component }}/${{ inputs.stack }}
 
 on:
   workflow_dispatch:
@@ -41,15 +41,15 @@ jobs:
         shell: bash
     environment:
       name: ${{ inputs.github_environment }}
-      url: ${{ steps.deploy.outputs.output_url }}
+      url: ${{ steps.destroy.outputs.output_url }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
         with:
           ref: ${{ inputs.sha }}
 
-      - name: Deploy
-        id: deploy
+      - name: Destroy
+        id: destroy
         shell: bash
         env:
           ATMOS_PRO_WORKSPACE_ID: ${{ vars.ATMOS_PRO_WORKSPACE_ID }}
@@ -57,4 +57,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_SHA: ${{ inputs.sha }}
         run: |
-          atmos terraform deploy ${{ inputs.component }} -s ${{ inputs.stack }} --upload-status
+          atmos terraform destroy ${{ inputs.component }} -s ${{ inputs.stack }} -auto-approve

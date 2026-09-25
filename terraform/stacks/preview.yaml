@@ -1,5 +1,6 @@
 import:
   - _default.yaml
+  - atmos-pro/preview.yaml
   - defaults/app.yaml
   - deps/*
 
@@ -7,11 +8,10 @@ vars:
   stage: preview
   deps_stage: dev
 
-terraform:
-  auth:
-    identities:
-      plat-dev/terraform:
-        default: true
+auth:
+  identities:
+    plat-dev/terraform:
+      default: true
   
 components:
   terraform:

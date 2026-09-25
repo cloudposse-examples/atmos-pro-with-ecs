@@ -36,6 +36,7 @@ jobs:
         shell: bash
         env:
           ATMOS_PRO_WORKSPACE_ID: ${{ vars.ATMOS_PRO_WORKSPACE_ID }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ATMOS_PRO_BASE_URL: ${{ vars.ATMOS_PRO_BASE_URL }}
+          
         run: |
-          atmos list instances --upload
+          atmos list instances --upload --logs-level Debug

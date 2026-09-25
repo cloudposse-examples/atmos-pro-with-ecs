@@ -25,7 +25,7 @@ permissions:
 env:
   ATMOS_PROFILE: github
   # Reconstruct APP_IMAGE from SHA (image was built in the triggering workflow)
-  APP_IMAGE: "${{ vars.ECR_REGISTRY }}/cloudposse-examples/atmos-pro-with-ecs:sha-${{ inputs.sha }}"
+  APP_IMAGE: "${{ vars.ECR_REGISTRY }}/cloudposse-sandbox/atmos-pro-with-ecs:sha-${{ inputs.sha }}"
 
 jobs:
   plan:
@@ -46,6 +46,7 @@ jobs:
         shell: bash
         env:
           ATMOS_PRO_WORKSPACE_ID: ${{ vars.ATMOS_PRO_WORKSPACE_ID }}
+          ATMOS_PRO_BASE_URL: ${{ vars.ATMOS_PRO_BASE_URL }}          
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_SHA: ${{ inputs.sha }}
         run: |

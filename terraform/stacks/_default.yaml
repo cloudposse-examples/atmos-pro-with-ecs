@@ -1,5 +1,5 @@
 import:
-  - defaults/atmos-pro
+  - atmos-pro/default.yaml
 
 vars:
   namespace: cplive
