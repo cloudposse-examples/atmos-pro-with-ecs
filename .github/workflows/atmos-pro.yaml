@@ -101,7 +101,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
         with:
-          # ref: ${{ github.event.pull_request.merged && github.event.pull_request.merge_commit_sha || github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
 
       - name: Determine Affected Stacks
