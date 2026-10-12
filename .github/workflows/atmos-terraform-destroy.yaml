@@ -15,6 +15,9 @@ on:
       sha:
         description: "Commit SHA"
         type: string
+      pr_number:
+        description: "PR Number"
+        type: string        
       github_environment:
         description: "GitHub Environment"
         required: true
