@@ -70,8 +70,8 @@ jobs:
         id: build
         uses: cloudposse/github-action-docker-build-push@v3
         with:
-          organization: cloudposse-sandbox
-          repository: atmos-pro-with-ecs
+          organization: ${{ github.event.repository.owner }}
+          repository: ${{ github.event.repository.name }}
           registry: ${{ vars.ECR_REGISTRY }}
           docker-metadata-pr-head-sha: ${{ github.event_name == 'pull_request' }}
           workdir: app
