@@ -12,6 +12,9 @@ on:
         description: "Stack"
         required: true
         type: string
+      pr_number:
+        description: "PR Number"
+        type: string        
       sha:
         description: "Commit SHA"
         type: string
