@@ -95,9 +95,8 @@ func (a *app) handleIndex(w http.ResponseWriter, r *http.Request) {
 func main() {
 	color := os.Getenv("COLOR")
 	if len(color) == 0 {
-		color = "red"
+		color = "green"
 	}
-
 	
 	addr := os.Getenv("LISTEN")
 	if len(addr) == 0 {
