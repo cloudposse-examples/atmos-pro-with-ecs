@@ -29,7 +29,8 @@ env:
   ATMOS_PROFILE: github
   # Reconstruct APP_IMAGE from SHA (image was built in the triggering workflow)
   APP_IMAGE: "${{ vars.ECR_REGISTRY }}/cloudposse-sandbox/atmos-pro-with-ecs:sha-${{ inputs.sha }}"
-
+  PR_NUMBER: ${{ inputs.pr_number }}
+  
 jobs:
   plan:
     name: ${{ inputs.component }}-${{ inputs.stack }}
