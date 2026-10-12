@@ -1,3 +1,9 @@
+<<<<<<< HEAD
+=======
+import:
+  - atmos-pro/default.yaml
+
+>>>>>>> a549eeefa621af74cda3cab303252340dd0fa886
 vars:
   namespace: cplive
   tenant: plat
