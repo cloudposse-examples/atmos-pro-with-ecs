@@ -55,7 +55,7 @@ jobs:
       - uses: cloudposse/github-action-docker-promote@v1
         id: promote
         with:
-          organization: ${{ github.event.repository.owner }}
+          organization: ${{ github.repository_owner }}
           repository: ${{ github.event.repository.name }}
           registry: ${{ vars.ECR_REGISTRY }}
           from: sha-${{ github.sha }}

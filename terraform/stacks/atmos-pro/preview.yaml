@@ -9,7 +9,7 @@ apply-wf-config: &apply-wf-config
     inputs:
       component: "{{ .atmos_component }}"
       stack: "{{ .atmos_stack }}"
-      github_environment: "{{ .vars.stage }}"
+      github_environment: "prod"
 
 destroy-wf-config: &destroy-wf-config
   atmos-terraform-destroy.yaml:

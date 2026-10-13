@@ -70,7 +70,7 @@ jobs:
         id: build
         uses: cloudposse/github-action-docker-build-push@v3
         with:
-          organization: ${{ github.event.repository.owner }}
+          organization: ${{ github.repository_owner }}
           repository: ${{ github.event.repository.name }}
           registry: ${{ vars.ECR_REGISTRY }}
           docker-metadata-pr-head-sha: ${{ github.event_name == 'pull_request' }}
