@@ -12,9 +12,9 @@ on:
         description: "Stack"
         required: true
         type: string
-      pr_number:
-        description: "PR Number"
-        type: string        
+      # pr_number:
+      #   description: "PR Number"
+      #   type: string        
       sha:
         description: "Commit SHA"
         type: string
@@ -28,7 +28,7 @@ permissions:
 env:
   ATMOS_PROFILE: github
   APP_IMAGE: "${{ vars.ECR_REGISTRY }}/${{ github.repository }}:sha-${{ inputs.sha }}"
-  PR_NUMBER: ${{ inputs.pr_number }}
+  # PR_NUMBER: ${ inputs.pr_number }
   
 jobs:
   plan:
