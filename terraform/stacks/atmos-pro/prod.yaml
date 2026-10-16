@@ -27,6 +27,10 @@ settings:
         workflows: *plan-wf-config
       reopened:
         workflows: *plan-wf-config
+      labeled:
+        workflows: *plan-wf-config
+      unlabeled: 
+        workflows: *plan-wf-config        
     merge_group:
       checks_requested:
         workflows: *plan-wf-config

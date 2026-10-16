@@ -9,11 +9,13 @@ module "task_label" {
 
 // Define an ECS task definition
 resource "aws_ecs_task_definition" "default" {
+  count = module.this.enabled ? 1 : 0
+
   family                = module.this.id
   container_definitions = local.container_definitions_json
 
-  task_role_arn      = aws_iam_role.ecs_task.arn
-  execution_role_arn = aws_iam_role.ecs_exec.arn
+  task_role_arn      = one(aws_iam_role.ecs_task[*].arn)
+  execution_role_arn = one(aws_iam_role.ecs_exec[*].arn)
 
   requires_compatibilities = ["FARGATE", "EC2"]
   network_mode             = "awsvpc"

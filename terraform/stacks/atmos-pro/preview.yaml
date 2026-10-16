@@ -33,3 +33,7 @@ settings:
         workflows: *apply-wf-config
       merged: 
         workflows: *destroy-wf-config
+      labeled:
+        workflows: *apply-wf-config
+      unlabeled: 
+        workflows: *destroy-wf-config
