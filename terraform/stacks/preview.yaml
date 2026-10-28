@@ -15,7 +15,7 @@ auth:
   
 settings:
   pro:
-    enabled: '{{ env "PREVIEW_ENABLED" | default "false" }}'
+    enabled: !env PREVIEW_ENABLED false
 
 components:
   terraform:
