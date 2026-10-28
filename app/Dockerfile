@@ -1,4 +1,4 @@
-FROM public.ecr.aws/docker/library/golang:1.26-alpine AS builder
+FROM mirror.gcr.io/library/golang:1.26-alpine AS builder
 
 # Copy source into builder
 COPY . /src
@@ -8,7 +8,7 @@ RUN cd /src && \
     go build -ldflags="-s -w" -trimpath -o example-app
 
 # Build the final image
-FROM public.ecr.aws/docker/library/alpine:3.22 AS final
+FROM mirror.gcr.io/library/alpine:3.22 AS final
 
 RUN apk add --no-cache bash curl && \
     addgroup -S app && adduser -S app -G app
