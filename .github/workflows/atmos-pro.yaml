@@ -110,9 +110,9 @@ jobs:
           ATMOS_PRO_WORKSPACE_ID: ${{ vars.ATMOS_PRO_WORKSPACE_ID }}
           ATMOS_PRO_BASE_URL: ${{ vars.ATMOS_PRO_BASE_URL }}          
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PREVIEW_ENABLED: "${{ github.event.pull_request.state != 'open' ||
+          PREVIEW_ENABLED: ${{ github.event.pull_request.state != 'open' ||
               (github.event.action == 'unlabeled' && !contains(github.event.pull_request.labels.*.name, 'deploy')) ||
               (github.event.action != 'unlabeled' && contains(github.event.pull_request.labels.*.name, 'deploy'))
-            }}"
+            }}
         run: |
           atmos describe affected --upload
