@@ -9,7 +9,7 @@ apply-wf-config: &apply-wf-config
     inputs:
       component: "{{ .atmos_component }}"
       stack: "{{ .atmos_stack }}"
-      github_environment: "{{ .vars.stage }}"
+      github_environment: "prod"
 
 destroy-wf-config: &destroy-wf-config
   atmos-terraform-destroy.yaml:
@@ -31,11 +31,9 @@ settings:
         workflows: *apply-wf-config
       reopened:
         workflows: *apply-wf-config
-      merged:
+      merged: 
         workflows: *destroy-wf-config
-    merge_group:
-      checks_requested:
+      labeled:
         workflows: *apply-wf-config
-    release:
-      released:
-        workflows: *apply-wf-config
+      unlabeled: 
+        workflows: *destroy-wf-config

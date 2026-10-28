@@ -1,6 +1,3 @@
-import:
-  - atmos-pro/default.yaml
-
 vars:
   namespace: cplive
   tenant: plat

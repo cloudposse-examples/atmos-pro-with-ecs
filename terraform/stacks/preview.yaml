@@ -13,6 +13,10 @@ auth:
     plat-dev/terraform:
       default: true
   
+settings:
+  pro:
+    enabled: '{{ env "PREVIEW_ENABLED" | default "false" }}'
+
 components:
   terraform:
     app:

@@ -15,6 +15,9 @@ on:
       sha:
         description: "Commit SHA"
         type: string
+      pr_number2:
+        description: "PR Number"
+        type: string        
       github_environment:
         description: "GitHub Environment"
         required: true
@@ -28,8 +31,9 @@ permissions:
 
 env:
   ATMOS_PROFILE: github
-  APP_IMAGE: "${{ vars.ECR_REGISTRY }}/cloudposse-sandbox/atmos-pro-with-ecs:sha-${{ inputs.sha }}"
-
+  APP_IMAGE: "${{ vars.ECR_REGISTRY }}/${{ github.repository }}:sha-${{ inputs.sha }}"
+  PR_NUMBER: ${{ inputs.pr_number2 }}
+  
 jobs:
   apply:
     name: ${{ inputs.component }}-${{ inputs.stack }}
@@ -57,4 +61,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_SHA: ${{ inputs.sha }}
         run: |
-          atmos terraform destroy ${{ inputs.component }} -s ${{ inputs.stack }} -auto-approve
+          atmos terraform destroy ${{ inputs.component }} -s ${{ inputs.stack }} -auto-approve --upload-status

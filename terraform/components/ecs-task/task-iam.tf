@@ -8,16 +8,21 @@ locals {
   ]
 }
 
-data "aws_caller_identity" "current" {}
+data "aws_caller_identity" "current" {
+  count = module.this.enabled ? 1 : 0
+}
 
 // Define the IAM role for the ECS task
 resource "aws_iam_role" "ecs_task" {
+  count              = module.this.enabled ? 1 : 0
   name               = module.task_label.id
-  assume_role_policy = data.aws_iam_policy_document.ecs_task.json
+  assume_role_policy = one(data.aws_iam_policy_document.ecs_task[*].json)
   tags               = module.task_label.tags
 }
 
 data "aws_iam_policy_document" "ecs_task" {
+  count = module.this.enabled ? 1 : 0
+
   statement {
     effect  = "Allow"
     actions = ["sts:AssumeRole"]
@@ -31,11 +36,11 @@ data "aws_iam_policy_document" "ecs_task" {
 
 // Attach managed IAM policies to the ECS task role
 resource "aws_iam_role_policy_attachment" "ecs_task" {
-  for_each = toset([
+  for_each = module.this.enabled ? toset([
     "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly",
     "arn:aws:iam::aws:policy/AmazonSSMReadOnlyAccess"
-  ])
-  role       = aws_iam_role.ecs_task.id
+  ]) : toset([])
+  role       = one(aws_iam_role.ecs_task[*].id)
   policy_arn = each.value
 }
 
@@ -43,6 +48,8 @@ locals {
 }
 
 data "aws_iam_policy_document" "ecs_task_policy" {
+  count = module.this.enabled ? 1 : 0
+
   dynamic "statement" {
     for_each = local.efs_volume_resources != [] ? [local.efs_volume_resources] : []
     content {
@@ -72,7 +79,8 @@ data "aws_iam_policy_document" "ecs_task_policy" {
 // Define and attach the IAM policy to the ECS task role
 // Uses the IAM policy document defined earlier
 resource "aws_iam_role_policy" "ecs_task" {
+  count  = module.this.enabled ? 1 : 0
   name   = module.task_label.id
-  policy = data.aws_iam_policy_document.ecs_task_policy.json
-  role   = aws_iam_role.ecs_task.id
+  policy = one(data.aws_iam_policy_document.ecs_task_policy[*].json)
+  role   = one(aws_iam_role.ecs_task[*].id)
 }

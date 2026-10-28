@@ -34,15 +34,16 @@ jobs:
   promote:
     if: github.event_name == 'release'
     runs-on: ["ubuntu-latest"]
-    container:
-      image: ghcr.io/cloudposse/atmos:${{ vars.ATMOS_VERSION }}
     defaults:
       run:
         shell: bash
     steps:
-      - name: Install Docker CLI
-        run: apt-get update && apt-get install -y docker.io bc
-
+      - name: Install Atmos
+        uses: cloudposse/github-action-setup-atmos@v3
+        with:
+          install-wrapper: false
+          atmos-version: ${{ vars.ATMOS_VERSION }}
+              
       - name: Checkout
         uses: actions/checkout@v6
 
@@ -50,12 +51,12 @@ jobs:
         run: |
           atmos auth env --identity plat-dev/terraform --format=github
           atmos auth login --identity plat-dev/terraform
-
+          
       - uses: cloudposse/github-action-docker-promote@v1
         id: promote
         with:
-          organization: cloudposse-examples
-          repository: atmos-pro-with-ecs
+          organization: ${{ github.repository_owner }}
+          repository: ${{ github.event.repository.name }}
           registry: ${{ vars.ECR_REGISTRY }}
           from: sha-${{ github.sha }}
           to: ${{ github.event.release.tag_name }}
@@ -65,60 +66,26 @@ jobs:
       image: ${{ steps.promote.outputs.image }}
       tag: ${{ steps.promote.outputs.tag }}
 
-  deploy-staging:
+  affected:
     needs: [ promote ]
-    if: >-
-      always() &&
-      (needs.promote.result == 'success' || needs.promote.result == 'skipped') &&
-      (github.event_name == 'release' ||
-       inputs.environment == 'staging' ||
-       inputs.environment == 'both')
+    name: Trigger Affected Stacks
     runs-on: ["ubuntu-latest"]
     container:
       image: ghcr.io/cloudposse/atmos:${{ vars.ATMOS_VERSION }}
     defaults:
       run:
         shell: bash
-    name: deploy / staging
-    environment:
-      name: staging
-      url: ${{ steps.deploy.outputs.url }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
-      - name: Deploy ECS Service
-        id: deploy
+      - name: Determine Affected Stacks
         env:
-          APP_IMAGE: "${{ vars.ECR_REGISTRY }}/cloudposse-examples/atmos-pro-with-ecs:${{ github.event.release.tag_name || inputs.tag }}"
+          ATMOS_PRO_WORKSPACE_ID: ${{ vars.ATMOS_PRO_WORKSPACE_ID }}
+          ATMOS_PRO_BASE_URL: ${{ vars.ATMOS_PRO_BASE_URL }}          
         run: |
-          atmos terraform deploy app -s staging
-
-  deploy-production:
-    needs: [ deploy-staging ]
-    if: >-
-      always() &&
-      (needs.deploy-staging.result == 'success' || needs.deploy-staging.result == 'skipped') &&
-      (github.event_name == 'release' ||
-       inputs.environment == 'prod' ||
-       inputs.environment == 'both')
-    runs-on: ["ubuntu-latest"]
-    container:
-      image: ghcr.io/cloudposse/atmos:${{ vars.ATMOS_VERSION }}
-    defaults:
-      run:
-        shell: bash
-    name: deploy / production
-    environment:
-      name: prod
-      url: ${{ steps.deploy.outputs.url }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Deploy ECS Service
-        id: deploy
-        env:
-          APP_IMAGE: "${{ vars.ECR_REGISTRY }}/cloudposse-examples/atmos-pro-with-ecs:${{ github.event.release.tag_name || inputs.tag }}"
-        run: |
-          atmos terraform deploy app -s prod
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          PREV=$(git describe --tags --abbrev=0 "${{ github.event.release.tag_name }}^")
+          atmos describe affected --ref "refs/tags/$PREV" --upload --clone-target-ref=true

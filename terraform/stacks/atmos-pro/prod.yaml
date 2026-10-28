@@ -27,11 +27,13 @@ settings:
         workflows: *plan-wf-config
       reopened:
         workflows: *plan-wf-config
-      merged:
+      labeled:
         workflows: *plan-wf-config
+      unlabeled: 
+        workflows: *plan-wf-config        
     merge_group:
       checks_requested:
-        workflows: *apply-wf-config
+        workflows: *plan-wf-config
     release:
       released:
         workflows: *apply-wf-config

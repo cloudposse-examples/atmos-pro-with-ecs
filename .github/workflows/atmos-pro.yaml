@@ -2,7 +2,13 @@ name: Atmos Pro
 on:
   pull_request:
     branches: ["main"]
-    types: [opened, synchronize, reopened, closed]
+    types: 
+      - opened
+      - synchronize
+      - reopened
+      - closed
+      - labeled
+      - unlabeled
   merge_group:
     branches: ["main"]
 
@@ -66,9 +72,10 @@ jobs:
         id: build
         uses: cloudposse/github-action-docker-build-push@v3
         with:
-          organization: cloudposse-sandbox
-          repository: atmos-pro-with-ecs
+          organization: ${{ github.repository_owner }}
+          repository: ${{ github.event.repository.name }}
           registry: ${{ vars.ECR_REGISTRY }}
+          docker-metadata-pr-head-sha: ${{ github.event_name == 'pull_request' }}
           workdir: app
           driver-opts: image=mirror.gcr.io/moby/buildkit:buildx-stable-1
 
@@ -96,7 +103,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
         with:
-          ref: ${{ github.event.pull_request.merged && github.event.pull_request.merge_commit_sha || github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
 
       - name: Determine Affected Stacks
@@ -104,9 +110,9 @@ jobs:
           ATMOS_PRO_WORKSPACE_ID: ${{ vars.ATMOS_PRO_WORKSPACE_ID }}
           ATMOS_PRO_BASE_URL: ${{ vars.ATMOS_PRO_BASE_URL }}          
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PREVIEW_ENABLED: "${{ github.event.pull_request.state != 'open' ||
+              (github.event.action == 'unlabeled' && !contains(github.event.pull_request.labels.*.name, 'deploy')) ||
+              (github.event.action != 'unlabeled' && contains(github.event.pull_request.labels.*.name, 'deploy'))
+            }}"
         run: |
-          if [[ "${{ github.event_name }}" == "merge_group" ]]; then
-            atmos describe affected --stack dev --upload
-          else
-            atmos describe affected --upload
-          fi
+          atmos describe affected --upload
